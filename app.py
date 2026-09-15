@@ -18,11 +18,11 @@ if str(ROOT) not in sys.path:
 
 from shiny import App, reactive, render
 
-from app.data_loader import AppData
-from app.layouts.shell import app_ui
-from app.modules import forecast as forecast_mod
-from app.modules import investigate as investigate_mod
-from app.modules import radar as radar_mod
+from dashboard.data_loader import AppData
+from dashboard.layouts.shell import app_ui
+from dashboard.modules import forecast as forecast_mod
+from dashboard.modules import investigate as investigate_mod
+from dashboard.modules import radar as radar_mod
 
 DATA = AppData.load(ROOT)
 

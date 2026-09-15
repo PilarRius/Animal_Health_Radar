@@ -59,3 +59,9 @@ desktop.ini
 # ---- logs -------------------------------------------------------------------
 *.log
 
+
+!data/raw/infur/
+!data/raw/infur/README.md
+!data/raw/smr/
+!data/raw/smr/README.md
+

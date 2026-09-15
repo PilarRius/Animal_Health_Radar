@@ -191,7 +191,24 @@ def build_alerts(
             ew_prob, nc.reporting_gap, nc.latent_disease_estimate, growth, intel
         )
         level = alert_level_from_probability(ew_prob)
-        explain = _build_explanation(ew_model, row, ew_prob)
+        # Full occlusion explanations are expensive; compute for elevated alerts
+        # and for the latest as-of date so Investigate still has Why/counterfactuals.
+        latest = max(unique_as_ofs) if unique_as_ofs else as_of
+        need_explain = (level not in (AlertLevel.NONE, AlertLevel.INFO)) or (as_of == latest)
+        if need_explain:
+            explain = _build_explanation(ew_model, row, ew_prob)
+        else:
+            explain = Explanation(
+                headline=f"Early-warning probability {ew_prob:.0%} (MODEL ESTIMATE)",
+                narrative=(
+                    "Background signal; detailed contributions are computed for WATCH+ "
+                    "alerts and for the latest as-of date."
+                ),
+                top_contributions=[],
+                counterfactuals=[],
+                method="deferred",
+                caveats=["Detailed explanation deferred for computational budget."],
+            )
         alert_id = f"AHR-{country}-{disease}-{as_of.isoformat()}"
 
         alert = AlertObject(

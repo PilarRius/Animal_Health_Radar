@@ -42,7 +42,7 @@ def app_as_of_dates(config) -> list[date]:
     return date_range_days(start, end, step=step)
 
 
-def run(*, app_as_of_only: bool = False, limit_entities: int | None = None) -> dict[str, Any]:
+def run(*, app_as_of_only: bool = False, limit_entities: int | None = None, n_as_of: int = 52) -> dict[str, Any]:
     config = get_config()
     processed = ensure_dir(config.path("data_processed"))
     models_dir = ensure_dir(config.path("models"))
@@ -98,12 +98,11 @@ def run(*, app_as_of_only: bool = False, limit_entities: int | None = None) -> d
     if app_as_of_only:
         score_dates = [d for d in score_dates if d in available]
         if not score_dates:
-            score_dates = sorted(available)[-8:]
+            score_dates = sorted(available)[-max(n_as_of, 1):]
         else:
-            # Keep a manageable app grid for the first build (weekly × entities × MC).
-            score_dates = score_dates[-8:]
+            score_dates = score_dates[-max(n_as_of, 1):]
     else:
-        score_dates = [d for d in score_dates if d in available] or sorted(available)[-26:]
+        score_dates = [d for d in score_dates if d in available] or sorted(available)[-max(n_as_of, 1):]
 
     LOGGER.info("Stage 3d | scoring %s as-of dates", len(score_dates))
     score_design = design.loc[pd.to_datetime(design["as_of"]).dt.date.isin(set(score_dates))].copy()
@@ -152,11 +151,21 @@ def run(*, app_as_of_only: bool = False, limit_entities: int | None = None) -> d
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-as-of-only", action="store_true")
+    parser.add_argument(
+        "--n-as-of",
+        type=int,
+        default=52,
+        help="When scoring the app grid, keep the most recent N as-of dates (default 52).",
+    )
     parser.add_argument("--limit-entities", type=int, default=None)
     parser.add_argument("--log-level", default=None)
     args = parser.parse_args()
     setup_logging(args.log_level)
-    run(app_as_of_only=args.app_as_of_only, limit_entities=args.limit_entities)
+    run(
+        app_as_of_only=args.app_as_of_only,
+        limit_entities=args.limit_entities,
+        n_as_of=args.n_as_of,
+    )
 
 
 if __name__ == "__main__":
