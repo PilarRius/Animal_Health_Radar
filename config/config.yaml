@@ -1,0 +1,201 @@
+# =============================================================================
+# Animal Health Radar - master configuration
+# =============================================================================
+# All paths are relative to the repository root unless absolute.
+# This file drives the whole pipeline; nothing below is hard-coded in modules.
+# =============================================================================
+
+project:
+  name: "Animal Health Radar"
+  short_name: "AHR"
+  version: "0.1.0"
+  # Global RNG seed. Every stochastic step derives a child seed from this.
+  random_seed: 20250915
+  # Data mode. "sample" => fully synthetic, offline, clearly labelled.
+  # "live" would require credentials in .env and network access (not enabled here).
+  data_mode: "sample"
+
+paths:
+  data_raw: "data/raw"
+  data_interim: "data/interim"
+  data_processed: "data/processed"
+  data_external: "data/external"
+  data_sample: "data/sample"
+  models: "data/processed/models"
+  reports: "reports"
+  figures: "reports/figures"
+  model_cards: "reports/model_cards"
+  validation: "reports/validation"
+
+# -----------------------------------------------------------------------------
+# Temporal frame of the analysis
+# -----------------------------------------------------------------------------
+time:
+  # Simulated / ingested history
+  start_date: "2020-01-06"      # a Monday
+  end_date: "2025-12-29"        # a Monday
+  # "Today" for the pilot. Nothing published after this exists in the corpus.
+  data_cutoff: "2025-12-29"
+  # Analysis resolution for the panel used by the models.
+  panel_frequency: "W-MON"      # weekly, week starting Monday
+  # Grid of as-of dates for which model outputs are pre-computed for the app.
+  as_of_grid:
+    start: "2023-01-02"
+    end: "2025-12-29"
+    step_days: 7
+  # Default as-of shown when the app opens (null => latest in grid)
+  default_as_of: null
+  # As-of grid used to BUILD the point-in-time training panel. It starts
+  # earlier than the app grid so the models see more history, and it is the
+  # same machinery: every row is assembled under its own knowledge cut-off.
+  training_as_of:
+    start: "2021-06-07"
+    step_days: 7
+
+# -----------------------------------------------------------------------------
+# Forecast / nowcast settings
+# -----------------------------------------------------------------------------
+horizons:
+  forecast_days: [7, 14, 28]
+  # Quantiles carried through the whole predictive stack.
+  quantiles: [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+  central_interval: 0.90        # lower/upper reported in the schemas
+  # Number of Monte-Carlo draws used to propagate parameter + sampling uncertainty
+  mc_draws: 800
+
+nowcast:
+  # Maximum reporting delay (days) considered "recoverable" by the nowcast.
+  max_delay_days: 120
+  # Reference weeks back from as_of that are re-estimated each run.
+  nowcast_window_weeks: 12
+  # Minimum reporting probability before a week is declared un-nowcastable
+  # (avoids exploding inverse-probability weights).
+  min_reporting_probability: 0.08
+  # Operational refit cadence for the delay model. Delay behaviour changes over
+  # months, not weeks, so refitting every as-of date would cost time without
+  # changing the answer. The fit in force at any as-of date never uses data
+  # published after that date.
+  delay_refit_interval_weeks: 8
+
+early_warning:
+  # Label: does officially visible activity APPEAR OR MATERIALLY INTENSIFY in
+  # the next `label_horizon_days`?
+  #   label = 1  if  publications in (as_of, as_of + H]
+  #                  >= max(1, escalation_factor * current visible run-rate over H)
+  # For a quiet country this reduces to "any new notification" (emergence);
+  # for a country already reporting it becomes "escalation beyond the current
+  # run-rate". One coherent target that is non-trivial in both regimes, so the
+  # model never has to extrapolate into an unobserved feature region.
+  label_horizon_days: 28
+  escalation_factor: 1.5
+  # Trailing window used to measure the current visible run-rate.
+  run_rate_weeks: 8
+  # Weeks without any notification for an entity to count as "quiet"; used for
+  # the emergence-only slice of the evaluation, not for training.
+  quiet_period_weeks: 8
+  # Temporal split used for fitting / calibrating / testing. No shuffling ever.
+  train_end: "2023-12-31"
+  calibration_end: "2024-12-31"   # test = everything after
+  calibration_method: "isotonic"  # "isotonic" | "platt" | "none"
+  primary_model: "gradient_boosting"  # "gradient_boosting" | "logistic"
+
+forecast:
+  train_end: "2024-06-30"
+  # Ensemble members; weights are learned on the validation window by CRPS.
+  members: ["negbin_glm", "damped_trend", "seasonal_climatology"]
+  min_weight: 0.05
+  # Target: the count of outbreaks with a reference week in the horizon that
+  # are EVENTUALLY reported. This is the well-defined observable outcome, so it
+  # can actually be scored. It is then rescaled to the latent scale using the
+  # ascertainment assumption below, and both are surfaced separately so the
+  # assumption is never hidden inside a headline number.
+  target: "reported_final"
+  report_latent_scale: true
+
+# -----------------------------------------------------------------------------
+# Feature store
+# -----------------------------------------------------------------------------
+features:
+  # Publication lag (days) applied to each feature family when writing to the
+  # point-in-time store. A feature describing reference week W only becomes
+  # usable at (end of W + lag). This is what makes as-of filtering honest.
+  availability_lag_days:
+    official: 0        # already delay-stamped per event, no extra lag
+    intelligence: 1
+    environmental: 6   # ERA5 near-real-time is ~5 days behind
+    climatology: 0     # static
+    exposure: 0        # static
+    contextual: 365    # FAOSTAT annual, published with a long lag
+    derived: 0
+  # Rolling windows (in weeks) used by temporal features
+  rolling_windows_weeks: [2, 4, 8, 13, 26, 52]
+  # Distance-decay kernel bandwidth (km) for spatial spillover risk
+  spatial_kernel_km: 900.0
+  # EWMA smoothing for anomaly detection
+  ewma_alpha: 0.30
+
+# -----------------------------------------------------------------------------
+# Evidence independence / source dependence control
+# -----------------------------------------------------------------------------
+independence:
+  # Clusters of sources that are NOT independent of each other.
+  # Evidence weight is discounted within a cluster (see src/linkage/independence.py)
+  clusters:
+    official:
+      members: ["WAHIS", "EMPRES-i"]
+      description: "EMPRES-i republishes WAHIS notifications; treat as one voice."
+      within_cluster_correlation: 0.95
+    media:
+      members: ["GDELT", "PADIWeb", "ProMED", "HealthMap"]
+      description: "All ultimately parse overlapping news corpora."
+      within_cluster_correlation: 0.70
+    aggregator:
+      members: ["BEACON", "EIOS"]
+      description: "Screening platforms that themselves ingest media + official."
+      within_cluster_correlation: 0.55
+    environmental:
+      members: ["ERA5", "ERA5-Land", "WorldClim"]
+      description: "Reanalysis / climatology; independent of epidemiological reporting."
+      within_cluster_correlation: 0.80
+    exposure:
+      members: ["GLW4", "FAOSTAT"]
+      description: "Livestock population denominators."
+      within_cluster_correlation: 0.60
+  # Cross-cluster correlation used to build the dependence matrix
+  cross_cluster_correlation:
+    media__aggregator: 0.60
+    official__media: 0.35
+    official__aggregator: 0.30
+    environmental__exposure: 0.10
+    default: 0.05
+
+# -----------------------------------------------------------------------------
+# Ascertainment (detection) assumptions
+# -----------------------------------------------------------------------------
+# The reporting-delay model is ESTIMATED from data. The probability that a true
+# outbreak is ever detected at all is NOT identifiable from official data alone;
+# it is supplied here as an explicit, auditable prior and propagated into the
+# nowcast intervals. Never presented as an estimate.
+ascertainment:
+  enabled: true
+  # Beta prior on detection probability, indexed by surveillance capacity tier.
+  priors:
+    high:   {alpha: 18.0, beta: 4.0}     # mean ~0.82
+    medium: {alpha: 10.0, beta: 8.0}     # mean ~0.56
+    low:    {alpha: 5.0,  beta: 12.0}    # mean ~0.29
+  # Disease-specific multiplier on detection (ASF in wild boar is harder to see)
+  disease_multiplier:
+    HPAI: 1.00
+    ASF: 0.85
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)-7s | %(name)-38s | %(message)s"
+
+app:
+  title: "Animal Health Radar"
+  subtitle: "Latent disease activity, reporting gaps and short-term risk"
+  theme: "darkly"
+  # Map projection / basemap-free choropleth (plotly natural earth)
+  map_projection: "natural earth"
+  max_table_rows: 250

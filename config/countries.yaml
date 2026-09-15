@@ -1,0 +1,199 @@
+# =============================================================================
+# Country panel for the pilot
+# =============================================================================
+# 20 countries spanning the EuFMD/European neighbourhood risk space.
+#
+# `surveillance_capacity` is an ASSUMPTION tier (high/medium/low) feeding the
+# ascertainment prior in config.yaml. It is NOT an assessment of any real
+# veterinary service; it exists so the sample generator and the nowcast have an
+# explicit, auditable underascertainment mechanism.
+#
+# `livestock` figures are round order-of-magnitude values (thousand head) used
+# as exposure denominators for the SAMPLE build only.
+# =============================================================================
+
+countries:
+  - iso3: FRA
+    name: France
+    region: Western Europe
+    centroid: {lat: 46.6, lon: 2.4}
+    area_km2: 551695
+    surveillance_capacity: high
+    livestock: {chickens: 205000, pigs: 12800, cattle: 17300}
+    neighbours: [DEU, BEL, ESP, ITA, NLD]
+
+  - iso3: DEU
+    name: Germany
+    region: Western Europe
+    centroid: {lat: 51.2, lon: 10.4}
+    area_km2: 357386
+    surveillance_capacity: high
+    livestock: {chickens: 157000, pigs: 21300, cattle: 11000}
+    neighbours: [FRA, POL, NLD, BEL, ITA]
+
+  - iso3: NLD
+    name: Netherlands
+    region: Western Europe
+    centroid: {lat: 52.2, lon: 5.6}
+    area_km2: 41543
+    surveillance_capacity: high
+    livestock: {chickens: 100000, pigs: 11000, cattle: 3800}
+    neighbours: [DEU, BEL, FRA]
+
+  - iso3: BEL
+    name: Belgium
+    region: Western Europe
+    centroid: {lat: 50.6, lon: 4.6}
+    area_km2: 30528
+    surveillance_capacity: high
+    livestock: {chickens: 42000, pigs: 6200, cattle: 2400}
+    neighbours: [FRA, NLD, DEU]
+
+  - iso3: ITA
+    name: Italy
+    region: Southern Europe
+    centroid: {lat: 42.8, lon: 12.5}
+    area_km2: 301340
+    surveillance_capacity: high
+    livestock: {chickens: 137000, pigs: 8600, cattle: 6200}
+    neighbours: [FRA, DEU, HUN, SRB]
+
+  - iso3: ESP
+    name: Spain
+    region: Southern Europe
+    centroid: {lat: 40.3, lon: -3.7}
+    area_km2: 505990
+    surveillance_capacity: high
+    livestock: {chickens: 180000, pigs: 34500, cattle: 6600}
+    neighbours: [FRA, MAR]
+
+  - iso3: POL
+    name: Poland
+    region: Central Europe
+    centroid: {lat: 52.1, lon: 19.4}
+    area_km2: 312696
+    surveillance_capacity: medium
+    livestock: {chickens: 213000, pigs: 9700, cattle: 6300}
+    neighbours: [DEU, UKR, HUN, ROU]
+
+  - iso3: HUN
+    name: Hungary
+    region: Central Europe
+    centroid: {lat: 47.2, lon: 19.5}
+    area_km2: 93028
+    surveillance_capacity: medium
+    livestock: {chickens: 32000, pigs: 2700, cattle: 870}
+    neighbours: [POL, ROU, SRB, ITA, UKR]
+
+  - iso3: ROU
+    name: Romania
+    region: Eastern Europe
+    centroid: {lat: 45.9, lon: 25.0}
+    area_km2: 238397
+    surveillance_capacity: medium
+    livestock: {chickens: 69000, pigs: 3900, cattle: 1900}
+    neighbours: [HUN, BGR, SRB, MDA, UKR]
+
+  - iso3: BGR
+    name: Bulgaria
+    region: Eastern Europe
+    centroid: {lat: 42.7, lon: 25.3}
+    area_km2: 110879
+    surveillance_capacity: medium
+    livestock: {chickens: 15000, pigs: 700, cattle: 550}
+    neighbours: [ROU, SRB, TUR]
+
+  - iso3: SRB
+    name: Serbia
+    region: Western Balkans
+    centroid: {lat: 44.0, lon: 20.9}
+    area_km2: 88361
+    surveillance_capacity: medium
+    livestock: {chickens: 17000, pigs: 2900, cattle: 870}
+    neighbours: [HUN, ROU, BGR, ITA]
+
+  - iso3: UKR
+    name: Ukraine
+    region: Eastern Europe
+    centroid: {lat: 48.9, lon: 31.4}
+    area_km2: 603550
+    surveillance_capacity: low
+    livestock: {chickens: 205000, pigs: 5700, cattle: 2900}
+    neighbours: [POL, ROU, MDA, HUN, RUS]
+
+  - iso3: MDA
+    name: Moldova
+    region: Eastern Europe
+    centroid: {lat: 47.2, lon: 28.5}
+    area_km2: 33846
+    surveillance_capacity: low
+    livestock: {chickens: 4200, pigs: 400, cattle: 120}
+    neighbours: [ROU, UKR]
+
+  - iso3: RUS
+    name: Russian Federation
+    region: Eastern Europe / Eurasia
+    centroid: {lat: 55.8, lon: 44.0}
+    area_km2: 17098246
+    surveillance_capacity: medium
+    livestock: {chickens: 545000, pigs: 26000, cattle: 17800}
+    neighbours: [UKR, GEO, POL]
+
+  - iso3: TUR
+    name: Türkiye
+    region: Near East
+    centroid: {lat: 39.0, lon: 35.2}
+    area_km2: 783562
+    surveillance_capacity: medium
+    livestock: {chickens: 380000, pigs: 2, cattle: 17000}
+    neighbours: [BGR, GEO, ISR]
+
+  - iso3: GEO
+    name: Georgia
+    region: Caucasus
+    centroid: {lat: 42.0, lon: 43.4}
+    area_km2: 69700
+    surveillance_capacity: low
+    livestock: {chickens: 9000, pigs: 170, cattle: 880}
+    neighbours: [TUR, RUS]
+
+  - iso3: ISR
+    name: Israel
+    region: Near East
+    centroid: {lat: 31.4, lon: 35.0}
+    area_km2: 22072
+    surveillance_capacity: high
+    livestock: {chickens: 47000, pigs: 180, cattle: 470}
+    neighbours: [EGY, TUR]
+
+  - iso3: EGY
+    name: Egypt
+    region: North Africa
+    centroid: {lat: 26.8, lon: 30.8}
+    area_km2: 1002450
+    surveillance_capacity: low
+    livestock: {chickens: 145000, pigs: 30, cattle: 4200}
+    neighbours: [ISR, TUN, MAR]
+
+  - iso3: TUN
+    name: Tunisia
+    region: North Africa
+    centroid: {lat: 34.0, lon: 9.6}
+    area_km2: 163610
+    surveillance_capacity: low
+    livestock: {chickens: 36000, pigs: 6, cattle: 640}
+    neighbours: [EGY, MAR, ITA]
+
+  - iso3: MAR
+    name: Morocco
+    region: North Africa
+    centroid: {lat: 31.8, lon: -7.1}
+    area_km2: 446550
+    surveillance_capacity: low
+    livestock: {chickens: 190000, pigs: 9, cattle: 3200}
+    neighbours: [ESP, TUN, EGY]
+
+# Countries enabled in this pilot (must match `iso3` values above)
+enabled:
+  [FRA, DEU, NLD, BEL, ITA, ESP, POL, HUN, ROU, BGR,
+   SRB, UKR, MDA, RUS, TUR, GEO, ISR, EGY, TUN, MAR]

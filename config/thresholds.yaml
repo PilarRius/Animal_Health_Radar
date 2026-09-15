@@ -1,0 +1,90 @@
+# =============================================================================
+# Decision thresholds
+# =============================================================================
+# These are OPERATIONAL decision rules applied on top of CALIBRATED
+# probabilities. They are deliberately separated from the models so that a
+# risk manager can retune appetite without retraining anything.
+# =============================================================================
+
+alert_levels:
+  # Applied to the calibrated early-warning probability
+  # P(country x disease becomes officially visible within the label horizon).
+  # Ordered low -> high; the highest matching band wins.
+  - level: "NONE"
+    min_probability: 0.00
+    colour: "#3b4252"
+    label: "No signal"
+    action: "Routine monitoring only."
+  - level: "INFO"
+    min_probability: 0.08
+    colour: "#5e81ac"
+    label: "Background"
+    action: "Log signal; no action required."
+  - level: "WATCH"
+    min_probability: 0.20
+    colour: "#ebcb8b"
+    label: "Watch"
+    action: "Increase passive surveillance sensitivity; verify media signals."
+  - level: "ALERT"
+    min_probability: 0.40
+    colour: "#d08770"
+    label: "Alert"
+    action: "Targeted active surveillance; contact national focal point."
+  - level: "CRITICAL"
+    min_probability: 0.65
+    colour: "#bf616a"
+    label: "Critical"
+    action: "Immediate verification mission; pre-position response capacity."
+
+# Escalation / de-escalation guards to avoid flapping alerts
+hysteresis:
+  # A level may only be raised if the probability exceeds the band by this much
+  escalate_margin: 0.00
+  # A level is only lowered once the probability drops this far below the band
+  deescalate_margin: 0.05
+  # Minimum number of consecutive as-of weeks before a level change is emitted
+  min_persistence_weeks: 1
+
+# Evidence quality gates. An alert that rests on a single dependent-source
+# cluster is flagged as low-confidence regardless of probability.
+evidence:
+  min_independent_clusters_for_alert: 1.35
+  min_independent_clusters_for_critical: 2.10
+  # Confidence banding on the composite confidence score [0, 1]
+  confidence_bands:
+    low: 0.00
+    moderate: 0.40
+    high: 0.68
+
+# Reporting-gap flags: fraction of estimated latent burden not yet officially visible
+reporting_gap:
+  # gap = estimated_hidden_burden / latent_disease_estimate
+  minor: 0.25
+  moderate: 0.50
+  severe: 0.72
+
+# Investigation priority composite (used for the Global Radar choropleth).
+# Weights must sum to 1.0; they are a stated policy choice, not an estimate.
+investigation_priority:
+  weights:
+    early_warning_probability: 0.34
+    reporting_gap: 0.22
+    latent_activity_norm: 0.20
+    forecast_growth: 0.14
+    intelligence_signal: 0.10
+  # Priority bands for the map legend
+  bands:
+    low: 0.00
+    moderate: 0.30
+    high: 0.52
+    very_high: 0.72
+
+# Forecast exceedance questions surfaced in the app
+forecast_questions:
+  # P(weekly reported outbreaks > threshold) - default threshold comes from
+  # diseases.yaml:exceedance_threshold_weekly but can be overridden per level.
+  exceedance_multipliers: [1.0, 2.0]
+  # P(any new outbreak at all) is P(count >= 1)
+  new_outbreak_min_count: 1
+  # P(increase) compares the horizon to the latest nowcast central estimate
+  increase_relative_margin: 0.10

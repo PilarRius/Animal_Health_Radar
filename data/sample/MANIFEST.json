@@ -1,0 +1,299 @@
+{
+  "generator": "src.ingestion.sample_generator.SampleCorpusGenerator",
+  "realism": "synthetic",
+  "warning": "ALL FILES IN THIS DIRECTORY ARE SYNTHETIC. They are produced by an epidemiological simulator for offline development and must never be interpreted as observations of real animal disease events.",
+  "seed": 20250915,
+  "generated_for_cutoff": "2025-12-29",
+  "period": {
+    "start": "2020-01-06",
+    "end": "2025-12-29"
+  },
+  "countries": [
+    "FRA",
+    "DEU",
+    "NLD",
+    "BEL",
+    "ITA",
+    "ESP",
+    "POL",
+    "HUN",
+    "ROU",
+    "BGR",
+    "SRB",
+    "UKR",
+    "MDA",
+    "RUS",
+    "TUR",
+    "GEO",
+    "ISR",
+    "EGY",
+    "TUN",
+    "MAR"
+  ],
+  "diseases": [
+    "HPAI",
+    "ASF"
+  ],
+  "files": {
+    "wahis_events_sample.csv": {
+      "adapter": "wahis",
+      "rows": 6330,
+      "columns": [
+        "event_id",
+        "outbreak_id",
+        "report_type",
+        "report_number",
+        "disease",
+        "disease_code",
+        "serotype",
+        "country",
+        "iso3",
+        "admin1",
+        "locality",
+        "latitude",
+        "longitude",
+        "location_precision",
+        "start_date",
+        "date_of_suspicion",
+        "date_of_confirmation",
+        "date_of_notification",
+        "date_of_publication",
+        "event_status",
+        "diagnosis",
+        "species",
+        "host_category",
+        "is_wild",
+        "outbreaks",
+        "susceptible",
+        "cases",
+        "deaths",
+        "killed_and_disposed",
+        "is_first_occurrence",
+        "control_measures",
+        "data_realism"
+      ]
+    },
+    "empresi_events_sample.csv": {
+      "adapter": "empresi",
+      "rows": 4893,
+      "columns": [
+        "empresi_id",
+        "source_reference",
+        "upstream_source",
+        "disease",
+        "disease_code",
+        "country",
+        "iso3",
+        "latitude",
+        "longitude",
+        "observation_date",
+        "report_date",
+        "published_date",
+        "species",
+        "cases",
+        "deaths",
+        "status",
+        "data_realism"
+      ]
+    },
+    "gdelt_daily_sample.csv": {
+      "adapter": "gdelt",
+      "rows": 57598,
+      "columns": [
+        "date",
+        "iso3",
+        "country",
+        "theme",
+        "disease_code",
+        "n_articles",
+        "n_distinct_sources",
+        "n_languages",
+        "avg_tone",
+        "query",
+        "data_realism"
+      ]
+    },
+    "padiweb_articles_sample.csv": {
+      "adapter": "padiweb",
+      "rows": 26246,
+      "columns": [
+        "article_id",
+        "published_date",
+        "extracted_date",
+        "iso3",
+        "country",
+        "disease_code",
+        "disease_mention",
+        "relevance_score",
+        "is_epidemiological_event",
+        "host_mention",
+        "language",
+        "source_outlet",
+        "title",
+        "data_realism"
+      ]
+    },
+    "promed_posts_sample.csv": {
+      "adapter": "promed",
+      "rows": 1231,
+      "columns": [
+        "post_id",
+        "archive_number",
+        "published_date",
+        "iso3",
+        "country",
+        "disease_code",
+        "subject",
+        "curator_comment_present",
+        "confidence",
+        "data_realism"
+      ]
+    },
+    "healthmap_alerts_sample.csv": {
+      "adapter": "healthmap",
+      "rows": 14035,
+      "columns": [
+        "alert_id",
+        "published_date",
+        "iso3",
+        "country",
+        "disease_code",
+        "latitude",
+        "longitude",
+        "feed",
+        "duplicate_of_feed_item",
+        "headline",
+        "data_realism"
+      ]
+    },
+    "beacon_signals_sample.csv": {
+      "adapter": "beacon",
+      "rows": 8975,
+      "columns": [
+        "signal_id",
+        "detected_date",
+        "screened_date",
+        "iso3",
+        "country",
+        "disease_code",
+        "signal_strength",
+        "verification_status",
+        "signal_type",
+        "underlying_sources",
+        "data_realism"
+      ]
+    },
+    "eios_board_items_mock.csv": {
+      "adapter": "eios",
+      "rows": 1955,
+      "columns": [
+        "item_id",
+        "board",
+        "first_seen_date",
+        "iso3",
+        "country",
+        "disease_code",
+        "n_articles_in_cluster",
+        "relevance",
+        "triage_state",
+        "data_realism"
+      ]
+    },
+    "era5_weekly_sample.csv": {
+      "adapter": "era5",
+      "rows": 6260,
+      "columns": [
+        "week_start",
+        "iso3",
+        "t2m_mean_c",
+        "t2m_min_c",
+        "t2m_max_c",
+        "total_precipitation_mm",
+        "relative_humidity_pct",
+        "wind_speed_10m_ms",
+        "aggregation",
+        "release_lag_days",
+        "data_realism"
+      ]
+    },
+    "era5land_weekly_sample.csv": {
+      "adapter": "era5_land",
+      "rows": 6260,
+      "columns": [
+        "week_start",
+        "iso3",
+        "skin_temperature_c",
+        "soil_temperature_l1_c",
+        "volumetric_soil_water_l1",
+        "snow_depth_m",
+        "aggregation",
+        "release_lag_days",
+        "data_realism"
+      ]
+    },
+    "worldclim_climatology_sample.csv": {
+      "adapter": "worldclim",
+      "rows": 240,
+      "columns": [
+        "iso3",
+        "month",
+        "tavg_c",
+        "tmin_c",
+        "tmax_c",
+        "prec_mm",
+        "reference_period",
+        "data_realism"
+      ]
+    },
+    "glw4_livestock_density_sample.csv": {
+      "adapter": "glw4",
+      "rows": 120,
+      "columns": [
+        "iso3",
+        "country",
+        "species",
+        "reference_year",
+        "dataset_version",
+        "release_date",
+        "total_head",
+        "density_head_per_km2",
+        "area_km2",
+        "layer",
+        "aggregation",
+        "data_realism"
+      ]
+    },
+    "faostat_livestock_annual_sample.csv": {
+      "adapter": "faostat",
+      "rows": 360,
+      "columns": [
+        "iso3",
+        "country",
+        "year",
+        "item",
+        "element",
+        "unit",
+        "value",
+        "release_date",
+        "data_realism"
+      ]
+    },
+    "_ground_truth_latent_weekly.csv": {
+      "adapter": "truth",
+      "rows": 12520,
+      "columns": [
+        "week_start",
+        "iso3",
+        "disease_code",
+        "entity_key",
+        "true_latent_outbreaks",
+        "detected_outbreaks",
+        "eventually_notified_outbreaks",
+        "true_ascertainment",
+        "true_suitability",
+        "usage",
+        "data_realism"
+      ]
+    }
+  }
+}

@@ -1,0 +1,156 @@
+# =============================================================================
+# Disease definitions
+# =============================================================================
+# Epidemiological parameters used by (a) the synthetic sample generator and
+# (b) the environmental-suitability feature builders.
+#
+# Values are order-of-magnitude literature-plausible defaults for a pilot, not
+# calibrated estimates. They are configuration, not results.
+# =============================================================================
+
+diseases:
+  HPAI:
+    code: "HPAI"
+    name: "High pathogenicity avian influenza"
+    wahis_name: "Influenza A viruses of high pathogenicity (Inf. with) (non-poultry including wild birds)"
+    pathogen: "Influenza A virus H5Nx"
+    host_groups: ["poultry", "wild_birds"]
+    species:
+      - "Gallus gallus (domestic)"
+      - "Meleagris gallopavo (domestic)"
+      - "Anas platyrhynchos (domestic)"
+      - "Cygnus olor (wild)"
+      - "Larus spp. (wild)"
+    transmission: ["wild_bird_migration", "poultry_trade", "fomites"]
+    # Mean incubation (days) - drives onset vs infection offset in the simulator
+    incubation_days_mean: 3.0
+    incubation_days_sd: 1.2
+    # Seasonality: peak week-of-year and concentration (von Mises kappa)
+    seasonality:
+      peak_week: 46        # forcing peak; realised epidemic peaks ~Jan-Feb after build-up
+      kappa: 2.2
+      amplitude: 1.35
+    # Environmental suitability response (used for the suitability index)
+    environment:
+      temp_optimum_c: 4.0
+      temp_tolerance_c: 7.5
+      precip_effect: 0.18          # wetter -> more waterfowl congregation
+      # Cold anomalies push migratory birds south -> raises suitability
+      cold_anomaly_weight: 0.35
+      # Proxy for the major wintering grounds of the Black Sea / Mediterranean
+      # and East Atlantic flyways (Gaussian on latitude).
+      lat_optimum: 51.0
+      lat_tolerance: 13.0
+    exposure_layer: "chickens_density"   # GLW4 layer used as denominator
+    # SCENARIO ASSUMPTION for the synthetic build only: relative reservoir /
+    # introduction pressure by country, so the sample corpus resembles the
+    # observed European risk geography. Not an estimate of real risk.
+    country_risk_multiplier:
+      NLD: 1.9
+      FRA: 1.8
+      DEU: 1.5
+      POL: 1.5
+      HUN: 1.6
+      ITA: 1.4
+      BEL: 1.3
+      ESP: 1.1
+      EGY: 1.3
+      ROU: 1.0
+      BGR: 1.0
+      UKR: 1.1
+      RUS: 1.0
+      TUR: 0.9
+      ISR: 0.8
+      SRB: 0.7
+      MDA: 0.6
+      GEO: 0.5
+      TUN: 0.5
+      MAR: 0.5
+    # Typical outbreak size distribution (negative binomial on cases)
+    outbreak_size:
+      cases_mean: 4200
+      cases_dispersion: 0.45
+      case_fatality: 0.55
+    # Baseline force of infection (weekly hazard per country, pre-covariates)
+    baseline_hazard: 0.060
+    # Self-excitation: how strongly recent latent activity begets new activity
+    self_excitation: 0.52
+    # Spatial spillover weight from neighbouring countries
+    spatial_excitation: 0.30
+    # Reporting-delay generative parameters (log-normal, days, onset->notification)
+    reporting_delay:
+      meanlog: 2.55       # median ~12.8 d
+      sdlog: 0.62
+    # Alert threshold (new reported outbreaks per week) used for P(exceed)
+    exceedance_threshold_weekly: 5
+    colour: "#e4572e"
+
+  ASF:
+    code: "ASF"
+    name: "African swine fever"
+    wahis_name: "African swine fever virus (Inf. with)"
+    pathogen: "African swine fever virus (Asfarviridae)"
+    host_groups: ["domestic_pigs", "wild_boar"]
+    species:
+      - "Sus scrofa domesticus"
+      - "Sus scrofa (wild boar)"
+    transmission: ["wild_boar_movement", "swill_feeding", "pig_trade", "fomites"]
+    incubation_days_mean: 7.0
+    incubation_days_sd: 2.5
+    seasonality:
+      peak_week: 24        # forcing peak; realised epidemic peaks ~Aug-Sep after build-up
+      kappa: 1.5
+      amplitude: 1.20
+    environment:
+      temp_optimum_c: 19.0
+      temp_tolerance_c: 11.0
+      precip_effect: -0.10         # dry summers concentrate boar at water points
+      cold_anomaly_weight: 0.05
+      # Wild boar density peaks in continental temperate Europe
+      lat_optimum: 48.0
+      lat_tolerance: 11.0
+    exposure_layer: "pigs_density"
+    # SCENARIO ASSUMPTION for the synthetic build only: the ASF front through
+    # eastern Europe and the Caucasus. Not an estimate of real risk.
+    country_risk_multiplier:
+      POL: 2.2
+      ROU: 2.1
+      UKR: 2.0
+      RUS: 1.9
+      MDA: 1.8
+      HUN: 1.7
+      BGR: 1.6
+      SRB: 1.6
+      GEO: 1.5
+      DEU: 1.3
+      ITA: 1.2
+      BEL: 0.7
+      FRA: 0.6
+      NLD: 0.5
+      ESP: 0.5
+      TUR: 0.4
+      ISR: 0.1
+      EGY: 0.1
+      TUN: 0.1
+      MAR: 0.1
+    outbreak_size:
+      cases_mean: 120
+      cases_dispersion: 0.70
+      case_fatality: 0.88
+    baseline_hazard: 0.045
+    self_excitation: 0.64          # ASF is strongly persistent once established
+    spatial_excitation: 0.42       # front-wave spread through wild boar
+    reporting_delay:
+      meanlog: 2.80       # median ~16.4 d
+      sdlog: 0.70
+    exceedance_threshold_weekly: 8
+    colour: "#3d5a80"
+
+# Diseases enabled in this pilot build
+enabled: ["HPAI", "ASF"]
+
+# Cross-disease display grouping used by the app selector
+groups:
+  all:
+    label: "All diseases (combined radar)"
+    members: ["HPAI", "ASF"]
