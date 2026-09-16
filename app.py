@@ -40,8 +40,9 @@ def server(input, output, session):  # noqa: ANN001
     def banner():
         mode = DATA.data_mode.upper()
         return (
-            f"DATA MODE: {mode} — all figures are MODEL ESTIMATES. "
-            "Not confirmed outbreaks. Synthetic corpus until live WAHIS is configured."
+            f"DATA MODE: {mode} · All map values are MODEL ESTIMATES (not confirmed outbreaks). "
+            "Start with Investigation priority · use as-of to move backwards in time · "
+            "see Intro for the full story."
         )
 
 
