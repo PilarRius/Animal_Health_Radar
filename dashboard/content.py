@@ -21,7 +21,7 @@ def intro_panel(data: AppData) -> ui.Tag:
             ui.h2("Animal Health Radar", class_="mb-1"),
             ui.h4(
                 "See what official surveillance has not fully observed yet — and how much earlier we could have known.",
-                class_="text-muted fw-normal",
+                class_="fw-normal",
             ),
             ui.p(
                 "WOAH International Datathon 2026 · Challenge 1: Early detection, nowcasting and forecasting "
@@ -82,19 +82,30 @@ def intro_panel(data: AppData) -> ui.Tag:
             ui.tags.div("↓", class_="my-1"),
             ui.tags.div("OFFICIAL OBSERVATION (e.g. WAHIS)", class_="fw-semibold"),
         ),
-        ui.p(
-            "Every number in this app is a ",
-            ui.tags.strong("MODEL ESTIMATE"),
-            " computed under a chosen ",
-            ui.tags.strong("as-of date"),
-            " — the knowledge cut-off. Nothing published after that date is allowed into the prediction. "
-            "That is how we prevent “cheating with the future” and how Historical Replay can demonstrate lead time."
-        ),
-        ui.h4("What each analysis tab answers"),
-        ui.tags.ul(
-            ui.tags.li(ui.tags.strong("Global Radar — "), "Where should an epidemiologist look first?"),
-            ui.tags.li(ui.tags.strong("Investigate — "), "For one country × disease: latent vs observed, why the alert, provenance, counterfactuals."),
-            ui.tags.li(ui.tags.strong("Forecast & Replay — "), "What is likely next (7/14/28d), and what would we have known on a past date?"),
+        ui.div(
+            {"class": "ahr-callout"},
+            ui.p(
+                "Every number in this app is a ",
+                ui.tags.strong("MODEL ESTIMATE"),
+                " computed under a chosen ",
+                ui.tags.strong("as-of date"),
+                " — the knowledge cut-off. Nothing published after that date is allowed into the prediction. "
+                "That is how we prevent “cheating with the future” and how Historical Replay can demonstrate lead time.",
+                class_="mb-3",
+            ),
+            ui.h4("What each analysis tab answers"),
+            ui.tags.ul(
+                ui.tags.li(ui.tags.strong("Global Radar — "), "Where should an epidemiologist look first?"),
+                ui.tags.li(
+                    ui.tags.strong("Investigate — "),
+                    "For one country × disease: latent vs observed, why the alert, provenance, counterfactuals.",
+                ),
+                ui.tags.li(
+                    ui.tags.strong("Forecast & Replay — "),
+                    "What is likely next (7/14/28d), and what would we have known on a past date?",
+                ),
+                class_="mb-0",
+            ),
         ),
         ui.h4("This build at a glance"),
         ui.layout_columns(
@@ -107,13 +118,16 @@ def intro_panel(data: AppData) -> ui.Tag:
         ui.div(
             {"class": "alert alert-warning mt-3"},
             ui.tags.strong(f"Data mode: {mode}. "),
-            "The live demo currently runs on a ",
-            ui.tags.strong("clearly labelled synthetic corpus"),
-            " so the full pipeline is reproducible offline. Real WAHIS INFUR/SMR extracts drop into ",
-            ui.tags.code("data/raw/infur"),
-            " and ",
-            ui.tags.code("data/raw/smr"),
-            " without rewriting the science. Never treat map colours as confirmed outbreaks.",
+            (
+                "Official observation is real WAHIS INFUR (offline extract; no API). "
+                "SMR semester status is kept separate from outbreak counts. "
+                "Media/environment enrichment may still use labelled sample files — "
+                "see Data sources. Never treat map colours as confirmed outbreaks."
+                if data.data_mode in {"pilot", "offline"}
+                else "The demo runs on a clearly labelled synthetic corpus so the full "
+                "pipeline is reproducible offline. Drop real INFUR/SMR under data/raw/ "
+                "and set data_mode=pilot. Never treat map colours as confirmed outbreaks."
+            ),
         ),
         ui.p(
             ui.tags.em(
@@ -145,13 +159,26 @@ def data_sources_panel(data: AppData) -> ui.Tag:
             ),
             ui.tags.li(
                 ui.tags.strong("EMPRES-i — "),
-                "Often republishes WAHIS. Marked downstream-of-official and placed in the same independence cluster."
+                "Often republishes WAHIS. Skipped in pilot mode to avoid double-counting INFUR; "
+                "when used, marked downstream-of-official in the same independence cluster."
             ),
         ),
         ui.h4("Epidemic intelligence (non-official)"),
         ui.tags.ul(
-            ui.tags.li(ui.tags.strong("GDELT / PADI-web / ProMED / HealthMap — "), "Media and curated signals → volume anomalies, diversity, acceleration — never raw article count as outbreak probability."),
-            ui.tags.li(ui.tags.strong("BEACON / EIOS — "), "Aggregator intelligence; EIOS is a clean adapter with mock sample until access exists."),
+            ui.tags.li(ui.tags.strong("GDELT / ProMED / HealthMap — "), "Media signals → volume anomalies, diversity, acceleration — never raw article count as outbreak probability."),
+            ui.tags.li(
+                ui.tags.strong("PADI-web — "),
+                "Real public JSON API (padi-web.cirad.fr/en/articles/api/) for CIRAD event extractions; cached under data/raw/padiweb/."
+            ),
+            ui.tags.li(
+                ui.tags.strong("BEACON — "),
+                "Real public API (api.beaconbio.org) for curated reports; cached offline under data/raw/beacon/."
+            ),
+            ui.tags.li(
+                ui.tags.strong("EIOS — "),
+                "Real recent feed from the public WHO Pandemic Hub newsmap (EIOS-tagged open news); "
+                "optional full community-portal Excel/CSV under data/raw/eios/."
+            ),
         ),
         ui.h4("Environment & exposure"),
         ui.tags.ul(
@@ -179,9 +206,11 @@ def data_sources_panel(data: AppData) -> ui.Tag:
         ),
         ui.div(
             {"class": "alert alert-secondary"},
-            f"Current app data_mode = {data.data_mode}. Sample files live under ",
+            f"Current app data_mode = {data.data_mode}. Offline INFUR/SMR live under ",
+            ui.tags.code("data/raw/"),
+            "; enrichment samples under ",
             ui.tags.code("data/sample/"),
-            " and are explicitly flagged synthetic/mock in provenance.",
+            " are flagged synthetic/mock in provenance.",
         ),
     )
 

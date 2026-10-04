@@ -22,6 +22,7 @@ def _ahr_css() -> ui.Tag:
           color: #eceff4;
         }
         .ahr-hero h2 { color: #eceff4; letter-spacing: 0.02em; }
+        .ahr-hero h4 { color: #ffffff !important; opacity: 1; }
         .ahr-flow {
           background: #121a2b;
           border: 1px dashed #5e81ac;
@@ -29,18 +30,35 @@ def _ahr_css() -> ui.Tag:
           font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
           font-size: 0.95rem;
         }
-        .ahr-prose { max-width: 1100px; margin: 0 auto; color: #e5e9f0; }
-        .ahr-prose h2, .ahr-prose h4 { color: #eceff4; }
+        /* Page body is light; keep prose dark for contrast. Cards stay dark. */
+        .ahr-prose { max-width: 1100px; margin: 0 auto; color: #1f2937; }
+        .ahr-prose h2, .ahr-prose h4 { color: #0f172a; }
+        .ahr-prose p, .ahr-prose li, .ahr-prose ul { color: #1f2937; }
+        .ahr-prose .text-muted { color: #4b5563 !important; }
         .ahr-prose .card {
           background: #121a2b;
           border-color: #3b4a5a;
           color: #e5e9f0;
         }
+        .ahr-prose .card p, .ahr-prose .card li, .ahr-prose .card strong {
+          color: #e5e9f0;
+        }
         .ahr-prose .card-header {
           background: #1c2434;
           border-bottom-color: #3b4a5a;
+          color: #eceff4;
           font-weight: 600;
         }
+        .ahr-callout {
+          background: #eef2ff;
+          border: 1px solid #c7d2fe;
+          border-radius: 0.5rem;
+          color: #1e3a5f;
+          padding: 1rem 1.25rem;
+          margin-bottom: 1rem;
+        }
+        .ahr-callout h4 { color: #1e3a5f !important; margin-top: 0; }
+        .ahr-callout p, .ahr-callout li { color: #1e3a5f !important; }
         .ahr-guide {
           background: #1c2434;
           border: 1px solid #3b4a5a;

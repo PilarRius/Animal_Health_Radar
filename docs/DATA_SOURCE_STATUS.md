@@ -7,10 +7,10 @@ Status of each source required by the master build prompt.
 |--------|--------|-------------------|-------|
 | WAHIS | active | Level 1 official | Primary observation process; sample synthetic events |
 | EMPRES-i | active | Official cluster (downstream) | Lineage marks WAHIS-derived; no double count |
-| BEACON | active | Aggregator cluster | Intelligence layer; sample signals |
-| PADI-web | active | Media cluster | Event-based news extraction signals |
+| BEACON | active (real API) | Aggregator cluster | Public `api.beaconbio.org`; cached under `data/raw/beacon/` |
+| PADI-web | active (real API) | Media cluster | Public `padi-web.cirad.fr/en/articles/api/`; cached under `data/raw/padiweb/` |
 | GDELT | active | Media cluster | Abnormal volume, diversity, acceleration — not raw counts as probability |
-| EIOS | active (mock) | Aggregator | Clean `EIOSAdapter`; data labelled `mock` |
+| EIOS | active (real newsmap) | Aggregator | Public WHO newsmap tunnel + optional portal export under `data/raw/eios/` |
 | ProMED | active (optional) | Media | Adapter present; not required for MVP |
 | HealthMap | active (optional) | Media | Adapter present |
 | ERA5 | active | Environmental | Weekly country aggregates in sample |

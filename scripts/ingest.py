@@ -71,6 +71,13 @@ def run(
         if config.data_mode == "sample":
             LOGGER.info("Stage 1a | synthetic sample corpus")
             generate_sample_corpus(config=config, force=force_sample)
+        elif config.data_mode in {"pilot", "offline"}:
+            # Real INFUR/SMR from data/raw; keep labelled sample files for
+            # enrichment adapters (media/env) so the fusion path still runs.
+            LOGGER.info(
+                "Stage 1a | pilot/offline mode: real WAHIS INFUR/SMR + sample enrichment files"
+            )
+            generate_sample_corpus(config=config, force=force_sample)
         else:
             LOGGER.info("Stage 1a | live mode: skipping synthetic corpus generation")
 

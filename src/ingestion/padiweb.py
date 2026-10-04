@@ -1,20 +1,30 @@
-"""PADI-web adapter - news-based animal disease intelligence (CIRAD).
+"""PADI-web adapter — CIRAD news-based animal disease intelligence.
 
-PADI-web differs from raw GDELT in that its pipeline already performs event
-extraction: each article carries a relevance score and a flag for whether an
-epidemiological event was detected. The adapter exploits that by emitting a
-*relevance-weighted* event rate alongside the volume anomaly, so a handful of
-high-confidence extractions is not drowned out by a flood of passing mentions.
+In ``pilot`` / ``offline`` / ``live`` modes the adapter calls the public
+PADI-web JSON listing at ``https://padi-web.cirad.fr/en/articles/api/``
+(no API key for the free limited tier). Results are cached under
+``data/raw/padiweb/`` so subsequent runs stay reproducible offline.
+
+Sample mode still uses the labelled synthetic corpus.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 
-from src.ingestion.base import AdapterOutput, SourceAdapter
+from src.ingestion.base import AdapterOutput, LiveSourceUnavailable, SourceAdapter
+from src.ingestion.padiweb_client import (
+    PADIWEB_API_BASE,
+    PADIWEB_SOURCE_CATEGORIES,
+    articles_to_frame,
+    fetch_padiweb_articles,
+)
 from src.ingestion.signal_derivation import derive_anomaly_block, emit_weekly_signals, to_weekly
-from src.schemas.enums import EvidenceCluster, SignalFamily, SourceTier, SourceType
+from src.schemas.enums import DataRealism, EvidenceCluster, SignalFamily, SourceTier, SourceType
 from src.utils.config import load_countries, load_diseases
+from src.utils.io import read_csv, write_csv
 from src.utils.logging_utils import get_logger
 
 LOGGER = get_logger(__name__)
@@ -23,7 +33,7 @@ __all__ = ["PADIWebAdapter"]
 
 
 class PADIWebAdapter(SourceAdapter):
-    """Relevance-weighted news event signals."""
+    """Relevance-weighted news event signals from PADI-web."""
 
     source_name = "PADI-web"
     source_type = SourceType.MEDIA
@@ -32,21 +42,96 @@ class PADIWebAdapter(SourceAdapter):
     reliability = 0.58
     sample_filename = "padiweb_articles_sample.csv"
     ingestion_lag_days = 1
-    licence = "CIRAD PADI-web terms of use"
+    licence = "CIRAD PADI-web terms of use — free limited research/web monitoring tier"
     homepage = "https://padi-web.cirad.fr"
-    live_env_var = "PADIWEB_API_BASE"
+    live_env_var = "PADIWEB_API_BASE"  # optional override; public listing needs no key
+
+    def load_raw(self) -> pd.DataFrame:
+        mode = self.config.data_mode
+        if mode in {"pilot", "offline", "live"}:
+            cache = self._cache_path()
+            refresh = str(self.config.get("sources.padiweb.refresh", "false")).lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+            if cache.is_file() and not refresh:
+                LOGGER.info("%s: loading cached extract %s", self.source_name, cache.name)
+                return read_csv(cache)
+            try:
+                frame = self.fetch_live()
+            except Exception as exc:  # noqa: BLE001
+                if cache.is_file():
+                    LOGGER.warning(
+                        "%s: live fetch failed (%s); falling back to cache %s",
+                        self.source_name,
+                        exc,
+                        cache.name,
+                    )
+                    return read_csv(cache)
+                raise LiveSourceUnavailable(
+                    f"{self.source_name}: live fetch failed and no cache at {cache}: {exc}"
+                ) from exc
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            write_csv(frame, cache)
+            LOGGER.info("%s: wrote cache %s (%s rows)", self.source_name, cache, len(frame))
+            return frame
+        return super().load_raw()
+
+    def fetch_live(self) -> pd.DataFrame:
+        import os
+
+        api_base = (
+            os.environ.get(self.live_env_var or "", "")
+            or str(self.config.get("sources.padiweb.api_base", PADIWEB_API_BASE))
+            or PADIWEB_API_BASE
+        )
+        published_after = str(
+            self.config.get("sources.padiweb.published_after", self.config.get("time.start_date", "2021-01-01"))
+        )
+        published_before = str(self.config.get("sources.padiweb.published_before", "") or "") or None
+        countries = list(load_countries().keys())
+        LOGGER.info(
+            "%s: fetching public articles API %s/en/articles/api/ (no key)",
+            self.source_name,
+            api_base.rstrip("/"),
+        )
+        articles = fetch_padiweb_articles(
+            disease_categories=PADIWEB_SOURCE_CATEGORIES,
+            iso3_countries=countries,
+            published_after=published_after,
+            published_before=published_before,
+            api_base=api_base,
+        )
+        return articles_to_frame(articles)
+
+    def _cache_path(self) -> Path:
+        raw = self.config.path("data_raw")
+        return raw / "padiweb" / "padiweb_articles_panel.csv"
 
     def transform(self, raw: pd.DataFrame) -> AdapterOutput:
         countries, diseases = load_countries(), load_diseases()
         output = AdapterOutput(source_name=self.source_name)
 
         frame = raw.copy()
+        if frame.empty:
+            output.notes.append("No PADI-web rows loaded.")
+            return output
+
         frame["iso3"] = frame["iso3"].astype(str).str.upper()
         frame["disease_code"] = frame["disease_code"].astype(str).str.upper()
         frame = frame.loc[frame["iso3"].isin(countries) & frame["disease_code"].isin(diseases)]
         if frame.empty:
             output.notes.append("No PADI-web rows matched the configured panel.")
             return output
+
+        realism = (
+            DataRealism.REAL
+            if self.config.data_mode in {"pilot", "offline", "live"}
+            else None
+        )
+        if "data_realism" in frame.columns and frame["data_realism"].astype(str).str.lower().eq("real").any():
+            realism = DataRealism.REAL
 
         frame["is_event"] = frame["is_epidemiological_event"].astype(str).str.lower().isin(
             {"true", "1", "yes"}
@@ -91,13 +176,23 @@ class PADIWebAdapter(SourceAdapter):
             ],
             family=SignalFamily.INTELLIGENCE,
             denominator_col="n_articles",
-            query_template="padiweb:events?country={iso3}&disease={disease}",
-            note="Relevance-weighted extraction counts; unverified media intelligence.",
+            query_template="padiweb:articles/api?country={iso3}&disease={disease}",
+            note=(
+                "Real PADI-web public articles API."
+                if realism == DataRealism.REAL
+                else "Relevance-weighted extraction counts; unverified media intelligence."
+            ),
         )
+        if realism == DataRealism.REAL:
+            for prov in provenance:
+                prov.realism = DataRealism.REAL
+
         output.signals.extend(signals)
         output.provenance.extend(provenance)
         output.notes.append(
-            "Reference date is the PADI-web extraction date, which can lag article "
-            "publication by a day; availability is stamped from the extraction date."
+            "PADI-web public articles API (padi-web.cirad.fr/en/articles/api/). "
+            "Relevance-weighted extraction counts; media-cluster intelligence — "
+            "not independent of GDELT/ProMED/HealthMap on the same stories. "
+            "Reference date is the PADI-web extraction/scraping date."
         )
         return output

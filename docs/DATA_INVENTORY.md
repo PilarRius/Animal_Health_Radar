@@ -26,7 +26,8 @@ Until a real pilot WAHIS extract is supplied, the pipeline runs exclusively on t
 | `wahis_events_sample.csv` | wahis | 6,330 | Official observation process (ground truth for evaluation of *visibility*, not latent truth) |
 | `empresi_events_sample.csv` | empresi | 4,893 | Downstream-of-WAHIS + limited independent field signals |
 | `gdelt_daily_sample.csv` | gdelt | 57,598 | Media volume / diversity / acceleration signals |
-| `padiweb_articles_sample.csv` | padiweb | 26,246 | News extraction intelligence |
+| `padiweb_articles_sample.csv` | padiweb | 26,246 | Synthetic news-extraction stand-in (sample mode) |
+| `data/raw/padiweb/padiweb_articles_panel.csv` | padiweb | 15,110 | **Real** PADI-web public API cache (HPAI/ASF × panel) |
 | `promed_posts_sample.csv` | promed | 1,231 | Optional curated intelligence |
 | `healthmap_alerts_sample.csv` | healthmap | 1,4035 | Optional aggregator alerts |
 | `beacon_signals_sample.csv` | beacon | 8,975 | Structured epidemic intelligence |

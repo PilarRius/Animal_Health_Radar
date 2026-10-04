@@ -5,9 +5,10 @@ technology:
 
 * **Official observation** -- :class:`~src.ingestion.wahis.WAHISAdapter` (primary),
   :class:`~src.ingestion.empresi.EMPRESiAdapter` (downstream of WAHIS).
-* **Epidemic intelligence** -- BEACON, PADI-web, GDELT, EIOS (mock), ProMED,
-  HealthMap. These see the world earlier and more noisily than the official
-  process, which is exactly why they are useful and exactly why they must be
+* **Epidemic intelligence** -- BEACON (real API), PADI-web (real API), EIOS
+  (public WHO newsmap + optional portal export), GDELT, ProMED, HealthMap.
+  These see the world earlier and more noisily than the official process,
+  which is exactly why they are useful and exactly why they must be
   de-duplicated against each other.
 * **Environmental** -- ERA5, ERA5-Land, WorldClim. Independent of the reporting
   process.
@@ -33,6 +34,7 @@ from src.ingestion.registry import (
     source_catalogue,
 )
 from src.ingestion.sample_generator import generate_sample_corpus
+from src.ingestion.smr import SMRAdapter
 from src.ingestion.wahis import WAHISAdapter
 from src.ingestion.worldclim import WorldClimAdapter
 
@@ -52,6 +54,7 @@ __all__ = [
     "LiveSourceUnavailable",
     "PADIWebAdapter",
     "ProMEDAdapter",
+    "SMRAdapter",
     "SourceAdapter",
     "WAHISAdapter",
     "WorldClimAdapter",

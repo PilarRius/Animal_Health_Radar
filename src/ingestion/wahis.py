@@ -1,26 +1,26 @@
-"""WOAH WAHIS adapter - the primary official observation process.
+"""WOAH WAHIS INFUR adapter — primary official observation process.
 
-WAHIS is treated as the *reference observation*, never as the truth. Its role
-in the system is threefold:
+Offline-first: in ``pilot`` / ``offline`` mode this adapter reads local INFUR
+CSV/Excel extracts under ``data/raw/`` (or ``data/raw/infur/``). It never calls
+the WAHIS API.
 
-1. it supplies the officially visible burden, which the nowcast inflates;
-2. its ``onset -> notification`` gaps are the training data for the reporting
-   delay model;
-3. its first notifications are the *labels* the early-warning model predicts.
+WAHIS is treated as the *reference observation*, never as the truth:
 
-The adapter is careful about one thing above all: ``available_from`` is the
-**publication** date, not the notification or onset date. An outbreak that
-started in March and was published in April did not exist, from the system's
-point of view, until April.
+1. officially visible burden (nowcast inflates);
+2. onset → publication gaps train the reporting-delay model;
+3. first notifications are early-warning labels.
 """
 
 from __future__ import annotations
 
+from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from src.ingestion.base import AdapterOutput, SourceAdapter
+from src.ingestion.base import AdapterOutput, LiveSourceUnavailable, SourceAdapter
+from src.ingestion.wahis_mapping import map_country_iso3, map_disease_code
 from src.schemas.canonical import CanonicalEvent
 from src.schemas.enums import (
     ConfirmationStatus,
@@ -32,15 +32,25 @@ from src.schemas.enums import (
     SourceType,
 )
 from src.utils.config import load_countries, load_diseases
+from src.utils.io import read_csv
 from src.utils.logging_utils import get_logger
 
 LOGGER = get_logger(__name__)
 
 __all__ = ["WAHISAdapter"]
 
+# INFUR extracts often contain Follow-Up rows whose first *visible* submission
+# in the file is months after outbreakStartDate (original IN missing). Those
+# pairs are not usable as reporting-delay observations and would empty the
+# recent nowcast weeks. Cap the trusted onset→submission gap; beyond that,
+# model the event on the submission week while keeping true onset in extras.
+_MAX_RELIABLE_DELAY_DAYS = 60
+
 _STATUS_MAP: dict[str, EventStatus] = {
     "ongoing": EventStatus.ONGOING,
+    "on-going": EventStatus.ONGOING,
     "resolved": EventStatus.RESOLVED,
+    "closed": EventStatus.RESOLVED,
     "confirmed": EventStatus.CONFIRMED,
     "suspected": EventStatus.SUSPECTED,
     "denied": EventStatus.DENIED,
@@ -55,7 +65,7 @@ _DIAGNOSIS_MAP: dict[str, ConfirmationStatus] = {
 
 
 class WAHISAdapter(SourceAdapter):
-    """Official immediate notifications and follow-up reports."""
+    """Official Immediate Notification / Follow-Up Report (INFUR) outbreaks."""
 
     source_name = "WAHIS"
     source_type = SourceType.OFFICIAL
@@ -67,7 +77,170 @@ class WAHISAdapter(SourceAdapter):
     ingestion_lag_days = 0
     licence = "WOAH terms of use - attribution required"
     homepage = "https://wahis.woah.org"
-    live_env_var = "WAHIS_API_BASE"
+    live_env_var = None  # API disabled; use offline extracts only
+
+    def load_raw(self) -> pd.DataFrame:
+        mode = self.config.data_mode
+        if mode in {"pilot", "offline", "live"}:
+            # "live" still uses offline files — never an API call.
+            path = self._resolve_offline_path()
+            if path is None:
+                raise LiveSourceUnavailable(
+                    f"{self.source_name}: no offline INFUR file under data/raw/infur/ "
+                    "or data/raw/infur_*.csv|.xlsx. Drop the WOAH extract and retry."
+                )
+            LOGGER.info("%s: loading offline INFUR %s (no API)", self.source_name, path.name)
+            if path.suffix.lower() in {".xlsx", ".xls"}:
+                frame = pd.read_excel(path)
+            else:
+                frame = read_csv(path)
+            return self._normalise_infur(frame)
+        return super().load_raw()
+
+    def fetch_live(self) -> pd.DataFrame:
+        raise LiveSourceUnavailable(
+            f"{self.source_name}: WAHIS API calls are disabled for this project. "
+            "Place INFUR CSV/Excel under data/raw/infur/ and set data_mode=pilot."
+        )
+
+    def _resolve_offline_path(self) -> Path | None:
+        raw = self.config.path("data_raw")
+        candidates: list[Path] = []
+        infur_dir = raw / "infur"
+        if infur_dir.is_dir():
+            candidates.extend(sorted(infur_dir.glob("*.csv")))
+            candidates.extend(sorted(infur_dir.glob("*.xlsx")))
+        candidates.extend(sorted(raw.glob("infur*.csv")))
+        candidates.extend(sorted(raw.glob("infur*.xlsx")))
+        # Prefer outbreak-level exports.
+        preferred = [p for p in candidates if "outbreak" in p.name.lower()]
+        return (preferred or candidates)[0] if (preferred or candidates) else None
+
+    def _normalise_infur(self, raw: pd.DataFrame) -> pd.DataFrame:
+        """Collapse INFUR outbreak×species rows to one row per outbreak."""
+        if raw.empty:
+            return raw
+        frame = raw.copy()
+        # Keep HPAI / ASF only (cheap filter before mapping)
+        disease_col = "disease" if "disease" in frame.columns else None
+        if disease_col:
+            mask = frame[disease_col].astype(str).str.contains(
+                r"high pathogenicity|Influenza A|African swine fever",
+                case=False,
+                na=False,
+            )
+            frame = frame.loc[mask].copy()
+
+        frame["_submission"] = pd.to_datetime(frame.get("submissionDate"), errors="coerce", utc=True)
+        frame["_onset"] = pd.to_datetime(
+            frame.get("outbreakStartDate", frame.get("eventStartDate")),
+            errors="coerce",
+            utc=True,
+        )
+        # Earliest public submission per outbreak is the knowability date.
+        frame = frame.sort_values("_submission", kind="mergesort")
+        outbreak_key = "outbreakId" if "outbreakId" in frame.columns else "eventId"
+        # Aggregate quantities across species rows for the same outbreak/report.
+        agg = {
+            "eventId": "first",
+            "reportId": "first",
+            "reportType": "first",
+            "reportNumber": "first",
+            "reportStatus": "first",
+            "submissionDate": "first",
+            "eventStartDate": "first",
+            "eventStatus": "first",
+            "country": "first",
+            "disease": "first",
+            "reason": "first",
+            "adminDivision": "first",
+            "location": "first",
+            "latitude": "first",
+            "longitude": "first",
+            "outbreakStartDate": "first",
+            "outbreakEndDate": "first",
+            "speciesName": lambda s: ";".join(sorted({str(x) for x in s.dropna()})),
+            "isWild": "max",
+            "susceptible": "sum",
+            "cases": "sum",
+            "deaths": "sum",
+            "killed": "sum",
+            "slaughtered": "sum",
+            "adminLevel1Name": "first",
+        }
+        present = {k: v for k, v in agg.items() if k in frame.columns}
+        present[outbreak_key] = "first"
+        grouped = frame.groupby(outbreak_key, as_index=False, sort=False).agg(present)
+
+        rows: list[dict[str, Any]] = []
+        for row in grouped.to_dict(orient="records"):
+            disease_code = map_disease_code(row.get("disease"))
+            iso3 = map_country_iso3(row.get("country"))
+            if disease_code is None or iso3 is None:
+                continue
+            publication = self._as_date(row.get("submissionDate"))
+            true_onset = self._as_date(row.get("outbreakStartDate") or row.get("eventStartDate"))
+            if publication is None:
+                continue
+            # Some INFUR rows have onset after submission; clamp so delay >= 0.
+            if true_onset is not None and true_onset > publication:
+                true_onset = publication
+            delay_days = (
+                (publication - true_onset).days if true_onset is not None else None
+            )
+            onset_reliable = (
+                delay_days is not None and 0 <= delay_days <= _MAX_RELIABLE_DELAY_DAYS
+            )
+            # Modelling reference: trusted onset, else submission (knowability week).
+            onset = true_onset if onset_reliable else publication
+            is_wild = bool(row.get("isWild")) if row.get("isWild") is not None else False
+            rows.append(
+                {
+                    "outbreak_id": str(row.get(outbreak_key) or row.get("eventId")),
+                    "event_id": str(row.get("eventId")),
+                    "iso3": iso3,
+                    "disease_code": disease_code,
+                    "disease": row.get("disease"),
+                    "date_of_publication": publication.isoformat(),
+                    "start_date": onset.isoformat() if onset else None,
+                    "true_onset_date": true_onset.isoformat() if true_onset else None,
+                    "onset_reliable": onset_reliable,
+                    "date_of_notification": publication.isoformat(),
+                    "date_of_confirmation": publication.isoformat(),
+                    "date_of_suspicion": None,
+                    "latitude": row.get("latitude"),
+                    "longitude": row.get("longitude"),
+                    "admin1": row.get("adminLevel1Name") or row.get("adminDivision"),
+                    "locality": row.get("location"),
+                    "location_precision": "point"
+                    if row.get("latitude") is not None
+                    else "admin1",
+                    "host_category": "wild" if is_wild else "domestic",
+                    "species": row.get("speciesName") or "",
+                    "outbreaks": 1,
+                    "cases": row.get("cases"),
+                    "deaths": row.get("deaths"),
+                    "killed_and_disposed": row.get("killed"),
+                    "susceptible": row.get("susceptible"),
+                    "event_status": str(row.get("eventStatus") or "").lower(),
+                    "diagnosis": "laboratory_confirmed",
+                    "is_first_occurrence": "first" in str(row.get("reason") or "").lower(),
+                    "report_type": row.get("reportType"),
+                    "report_number": row.get("reportNumber"),
+                    "control_measures": None,
+                    "serotype": None,
+                    "data_realism": "real",
+                    "source_layer": "INFUR",
+                    "infur_report_id": row.get("reportId"),
+                }
+            )
+        LOGGER.info(
+            "%s: normalised %s INFUR outbreaks into panel scope (from %s raw rows)",
+            self.source_name,
+            len(rows),
+            len(raw),
+        )
+        return pd.DataFrame(rows)
 
     def transform(self, raw: pd.DataFrame) -> AdapterOutput:
         countries = load_countries()
@@ -78,6 +251,11 @@ class WAHISAdapter(SourceAdapter):
         output = AdapterOutput(source_name=self.source_name)
         skipped_unknown = 0
         skipped_future = 0
+        realism_default = (
+            DataRealism.REAL
+            if self.config.data_mode in {"pilot", "offline", "live"}
+            else None
+        )
 
         for row in raw.to_dict(orient="records"):
             iso3 = str(row.get("iso3", "")).upper()
@@ -88,18 +266,22 @@ class WAHISAdapter(SourceAdapter):
 
             publication = self._as_date(row.get("date_of_publication"))
             if not self._within_cutoff(publication):
-                # Not yet public at the corpus cut-off => does not exist for us.
                 skipped_future += 1
                 continue
+
+            realism = realism_default
+            if str(row.get("data_realism", "")).lower() == "synthetic":
+                realism = DataRealism.SYNTHETIC
+            elif str(row.get("data_realism", "")).lower() == "real":
+                realism = DataRealism.REAL
 
             provenance = self.make_provenance(
                 record_id=str(row.get("outbreak_id") or row.get("event_id")),
                 published_at=publication,
                 url=f"{self.homepage}/#/event/{row.get('event_id')}",
-                query=f"wahis:event:{row.get('event_id')}",
-                realism=DataRealism.SYNTHETIC
-                if str(row.get("data_realism", "")).lower() == "synthetic"
-                else None,
+                query=f"wahis:infur:event:{row.get('event_id')}:outbreak:{row.get('outbreak_id')}",
+                realism=realism,
+                notes="INFUR outbreak observation; available_from = submissionDate.",
             )
 
             host_raw = str(row.get("host_category", "")).lower()
@@ -134,18 +316,26 @@ class WAHISAdapter(SourceAdapter):
                 deaths=self._opt_int(row.get("deaths")),
                 killed_disposed=self._opt_int(row.get("killed_and_disposed")),
                 susceptible=self._opt_int(row.get("susceptible")),
-                event_status=_STATUS_MAP.get(str(row.get("event_status", "")).lower(), EventStatus.UNKNOWN),
+                event_status=_STATUS_MAP.get(
+                    str(row.get("event_status", "")).lower(), EventStatus.UNKNOWN
+                ),
                 confirmation_status=_DIAGNOSIS_MAP.get(
-                    str(row.get("diagnosis", "")).lower(), ConfirmationStatus.LABORATORY_CONFIRMED
+                    str(row.get("diagnosis", "")).lower(),
+                    ConfirmationStatus.LABORATORY_CONFIRMED,
                 ),
                 is_first_occurrence=bool(row.get("is_first_occurrence", False)),
                 report_type=self._opt_str(row.get("report_type")),
                 report_number=self._opt_int(row.get("report_number")),
-                # THE critical line: knowable only once published.
                 available_from=publication,
                 provenance=provenance,
                 summary=self._opt_str(row.get("control_measures")),
-                extras={"control_measures": self._opt_str(row.get("control_measures"))},
+                extras={
+                    "control_measures": self._opt_str(row.get("control_measures")),
+                    "source_layer": row.get("source_layer") or "INFUR",
+                    "infur_report_id": row.get("infur_report_id"),
+                    "true_onset_date": row.get("true_onset_date"),
+                    "onset_reliable": bool(row.get("onset_reliable", True)),
+                },
             )
             output.events.append(event)
             output.provenance.append(provenance)
@@ -157,15 +347,27 @@ class WAHISAdapter(SourceAdapter):
         if skipped_future:
             output.notes.append(
                 f"{skipped_future} row(s) dropped: publication date after the corpus cut-off "
-                f"({self.cutoff}). These are genuinely unknown at analysis time."
+                f"({self.cutoff})."
             )
         output.notes.append(
-            "available_from = date_of_publication. Onset and notification dates are "
-            "retained but never used to decide what is knowable."
+            "available_from = INFUR submissionDate (public knowability). "
+            "Onset retained separately. No WAHIS API calls."
         )
         return output
 
-    # -- small coercion helpers ------------------------------------------ #
+    def _as_date(self, value: Any) -> date | None:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        if isinstance(value, date) and not isinstance(value, pd.Timestamp):
+            return value
+        ts = pd.to_datetime(value, errors="coerce", utc=True)
+        if pd.isna(ts):
+            return None
+        return ts.date()
+
+    def _within_cutoff(self, value: date | None) -> bool:
+        return value is not None and value <= self.cutoff
+
     @staticmethod
     def _opt_str(value: Any) -> str | None:
         if value is None or (isinstance(value, float) and pd.isna(value)):

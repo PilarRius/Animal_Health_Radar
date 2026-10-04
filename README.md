@@ -48,11 +48,14 @@ Modelling code lives in `src/models/`. The Shiny UI lives in `app/` and only rea
 
 | Layer | Status |
 |-------|--------|
-| Synthetic sample corpus (HPAI + ASF) | Ready (`data/sample/`, labelled `synthetic`) |
-| Ingest + linkage + feature store | Ready |
-| Reporting-delay, nowcast, early-warning, forecast | Trained offline |
-| Shiny app (Radar / Investigate / Forecast+Replay) | Ready (loads precomputed parquet) |
-| Live WAHIS pilot dump | **Not in repo** — switch `project.data_mode` when available |
+| Official WAHIS INFUR / SMR (offline extracts) | **Pilot** — `data/raw/infur_*.csv`, `smr_*.csv` (no API) |
+| BEACON / PADI-web / EIOS newsmap (real public feeds) | Cached under `data/raw/beacon/`, `padiweb/`, `eios/` |
+| Synthetic enrichment corpus (other media / env) | Ready (`data/sample/`, labelled `synthetic`) |
+| Ingest + linkage + feature store | Ready (`project.data_mode: pilot`) |
+| Reporting-delay, nowcast, early-warning, forecast | Retrain after placing INFUR/SMR files |
+| Shiny app (Intro / Radar / Investigate / Forecast / Docs) | Ready (`shiny run app.py`) |
+| Technical report | `docs/TECHNICAL_REPORT.md` |
+| Submission | See `docs/SUBMISSION.md` (OSS PDF + `diad-woah` access) |
 
 ## Installation
 
@@ -65,15 +68,24 @@ pip install -r requirements.txt
 
 ## Pipeline
 
+Place WOAH INFUR / SMR CSV or Excel extracts under `data/raw/` (see `docs/WAHIS_INFUR_SMR_DROP.md`).  
+`config/config.yaml` should have `project.data_mode: pilot`. **No WAHIS API calls.**
+
 ```bash
-# Full offline run (sample data)
-python scripts/run_pipeline.py
+# Optional: refresh real intelligence caches (no API keys)
+python scripts/fetch_beacon.py
+python scripts/fetch_padiweb.py
+python scripts/fetch_eios_newsmap.py
+
+# Full offline pilot run (real INFUR/SMR + real BEACON/PADI + sample enrichment)
+python scripts/run_pipeline.py --limit-as-of 120
 
 # Or step-by-step
 python scripts/ingest.py
-python scripts/build_features.py
+python scripts/build_features.py --limit-as-of 120
 python scripts/train.py --app-as-of-only
 python scripts/evaluate.py
+shiny run app.py --host 127.0.0.1 --port 8000
 ```
 
 ### What each script writes

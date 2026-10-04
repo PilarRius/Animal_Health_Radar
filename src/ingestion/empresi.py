@@ -48,6 +48,18 @@ class EMPRESiAdapter(SourceAdapter):
     source_tier = SourceTier.SECONDARY_OFFICIAL
     evidence_cluster = EvidenceCluster.OFFICIAL
     reliability = 0.80
+
+    def load_raw(self) -> pd.DataFrame:
+        # In pilot mode official observation is real INFUR; EMPRES-i would
+        # largely duplicate it (colleague note). Skip rather than mix streams.
+        if self.config.data_mode in {"pilot", "offline"}:
+            from src.ingestion.base import LiveSourceUnavailable
+
+            raise LiveSourceUnavailable(
+                f"{self.source_name}: skipped in {self.config.data_mode} mode "
+                "(INFUR is the official backbone; EMPRES-i largely republishes WAHIS)."
+            )
+        return super().load_raw()
     downstream_of_official = True
     sample_filename = "empresi_events_sample.csv"
     ingestion_lag_days = 0

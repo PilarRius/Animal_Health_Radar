@@ -144,13 +144,38 @@ def build_alerts(
     nowcast_by_key: dict[tuple[str, date], Any] = {}
     forecast_by_key: dict[tuple[str, date, int], Any] = {}
 
+    # Full nowcast window (not just the current week). Using window_weeks=1
+    # pinned reporting_probability at the floor and made every reporting_gap ≈ 1.
+    nowcast_window = int(config.get("nowcast.nowcast_window_weeks", 12))
     for as_of in unique_as_ofs:
         design_slice = frame.loc[frame["as_of"] == as_of].copy()
-        objects = nowcast_model.nowcast(history, as_of, window_weeks=1)
+        objects = nowcast_model.nowcast(history, as_of, window_weeks=nowcast_window)
         levels: dict[str, float] = {}
+        # Prefer the current reference week; fall back to the latest week present.
+        by_entity: dict[str, list[Any]] = {}
         for obj in objects:
-            nowcast_by_key[(obj.entity_key, as_of)] = obj
-            levels[obj.entity_key] = float(obj.latent_disease_estimate)
+            by_entity.setdefault(obj.entity_key, []).append(obj)
+        for entity, objs in by_entity.items():
+            objs_sorted = sorted(objs, key=lambda o: o.reference_week)
+            current = objs_sorted[-1]
+            # Stable 4-week aggregates for the radar / priority score.
+            recent = objs_sorted[-4:] if len(objs_sorted) >= 4 else objs_sorted
+            obs_4w = float(sum(o.observed_disease_burden for o in recent))
+            lat_4w = float(sum(o.latent_disease_estimate for o in recent))
+            hid_4w = float(sum(o.estimated_hidden_burden for o in recent))
+            gap_4w = float(hid_4w / lat_4w) if lat_4w > 1e-9 else 0.0
+            # Mid-window reporting probability is more interpretable than the
+            # leading-edge floor (current week is almost always incomplete).
+            mid = objs_sorted[max(0, len(objs_sorted) // 2)]
+            current.reporting_gap = float(min(max(gap_4w, 0.0), 1.0))
+            current.reporting_probability = float(mid.reporting_probability)
+            current.observed_disease_burden = obs_4w
+            current.latent_disease_estimate = lat_4w
+            current.estimated_hidden_burden = hid_4w
+            current.nowcast_lower = float(sum(o.nowcast_lower for o in recent))
+            current.nowcast_upper = float(sum(o.nowcast_upper for o in recent))
+            nowcast_by_key[(entity, as_of)] = current
+            levels[entity] = float(current.latent_disease_estimate)
 
         fcasts = forecast_model.predict(
             as_of,

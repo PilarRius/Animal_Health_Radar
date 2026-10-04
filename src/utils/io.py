@@ -108,7 +108,9 @@ def read_csv(path: str | Path, *, parse_dates: list[str] | None = None) -> pd.Da
             f"Missing input file: {target}\n"
             "Run `python scripts/ingest.py` to generate the sample corpus."
         )
-    return pd.read_csv(target, parse_dates=parse_dates, encoding="utf-8")
+    return pd.read_csv(
+        target, parse_dates=parse_dates, encoding="utf-8", low_memory=False
+    )
 
 
 # --------------------------------------------------------------------------- #

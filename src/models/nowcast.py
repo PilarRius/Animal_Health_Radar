@@ -249,13 +249,27 @@ class LatentStateNowcastModel:
         q = np.clip((b0 + p_matrix) / (b0 + 1.0), 1e-4, 1.0 - 1e-9)
         unreported = rng.negative_binomial(r, q).astype(float)
         eventually_reported = observed[:, None] + unreported
+        # Cap inverse-probability inflation (guards against p near the floor
+        # when a week already has a large observed count).
+        max_inflate = 1.0 / max(self.min_p, 0.25)
+        cap = observed[:, None] * max_inflate + 5.0
+        eventually_reported = np.minimum(eventually_reported, cap)
 
         # (3) ascertainment prior: what is never reported at all.
         ascertainment = self.ascertainment.draw(country_iso3, disease, draws, rng)
-        latent = eventually_reported / ascertainment[None, :]
+        # When the week is already largely visible, shrink ascertainment toward 1
+        # so we do not invent a huge never-reported reservoir on top of a busy week.
+        p_mean = float(np.clip(np.mean(p), 0.0, 1.0))
+        ascertainment = ascertainment * (1.0 - 0.6 * p_mean) + 1.0 * (0.6 * p_mean)
+        latent = eventually_reported / np.clip(ascertainment[None, :], 0.2, 1.0)
 
         # A latent count below what has already been reported is incoherent.
-        return np.maximum(latent, observed[:, None])
+        latent = np.maximum(latent, observed[:, None])
+        # Hard ceiling: when a week is already busy and mostly visible, do not
+        # invent more than +100% never-reported burden on top of observed.
+        if p_mean >= 0.7:
+            latent = np.minimum(latent, observed[:, None] * 2.0 + 1.0)
+        return latent
 
     @staticmethod
     def _local_level_smoother(

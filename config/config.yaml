@@ -11,9 +11,12 @@ project:
   version: "0.1.0"
   # Global RNG seed. Every stochastic step derives a child seed from this.
   random_seed: 20250915
-  # Data mode. "sample" => fully synthetic, offline, clearly labelled.
-  # "live" would require credentials in .env and network access (not enabled here).
-  data_mode: "sample"
+  # Data mode:
+  #   sample  => fully synthetic corpus
+  #   pilot   => real offline INFUR/SMR extracts under data/raw/ (NO WAHIS API);
+  #              enrichment sources may still use labelled sample files
+  #   offline => alias of pilot
+  data_mode: "pilot"
 
 paths:
   data_raw: "data/raw"
@@ -31,17 +34,17 @@ paths:
 # Temporal frame of the analysis
 # -----------------------------------------------------------------------------
 time:
-  # Simulated / ingested history
-  start_date: "2020-01-06"      # a Monday
-  end_date: "2025-12-29"        # a Monday
+  # Ingested history (INFUR extract spans ~2021–2026)
+  start_date: "2021-01-04"      # a Monday
+  end_date: "2026-06-29"        # a Monday
   # "Today" for the pilot. Nothing published after this exists in the corpus.
-  data_cutoff: "2025-12-29"
+  data_cutoff: "2026-06-29"
   # Analysis resolution for the panel used by the models.
   panel_frequency: "W-MON"      # weekly, week starting Monday
   # Grid of as-of dates for which model outputs are pre-computed for the app.
   as_of_grid:
     start: "2023-01-02"
-    end: "2025-12-29"
+    end: "2026-06-29"
     step_days: 7
   # Default as-of shown when the app opens (null => latest in grid)
   default_as_of: null
@@ -49,7 +52,7 @@ time:
   # earlier than the app grid so the models see more history, and it is the
   # same machinery: every row is assembled under its own knowledge cut-off.
   training_as_of:
-    start: "2021-06-07"
+    start: "2021-07-05"
     step_days: 7
 
 # -----------------------------------------------------------------------------
@@ -65,12 +68,13 @@ horizons:
 
 nowcast:
   # Maximum reporting delay (days) considered "recoverable" by the nowcast.
-  max_delay_days: 120
+  max_delay_days: 90
   # Reference weeks back from as_of that are re-estimated each run.
   nowcast_window_weeks: 12
   # Minimum reporting probability before a week is declared un-nowcastable
   # (avoids exploding inverse-probability weights).
-  min_reporting_probability: 0.08
+  # Floor on p_w. Too low + large observed counts → IPW explosions on the radar.
+  min_reporting_probability: 0.25
   # Operational refit cadence for the delay model. Delay behaviour changes over
   # months, not weeks, so refitting every as-of date would cost time without
   # changing the answer. The fit in force at any as-of date never uses data
@@ -94,13 +98,14 @@ early_warning:
   # the emergence-only slice of the evaluation, not for training.
   quiet_period_weeks: 8
   # Temporal split used for fitting / calibrating / testing. No shuffling ever.
-  train_end: "2023-12-31"
-  calibration_end: "2024-12-31"   # test = everything after
+  # Aligned to the INFUR pilot window (real notifications denser from ~2024).
+  train_end: "2025-06-30"
+  calibration_end: "2025-12-29"   # test = everything after
   calibration_method: "isotonic"  # "isotonic" | "platt" | "none"
   primary_model: "gradient_boosting"  # "gradient_boosting" | "logistic"
 
 forecast:
-  train_end: "2024-06-30"
+  train_end: "2025-06-30"
   # Ensemble members; weights are learned on the validation window by CRPS.
   members: ["negbin_glm", "damped_trend", "seasonal_climatology"]
   min_weight: 0.05
@@ -179,14 +184,38 @@ independence:
 ascertainment:
   enabled: true
   # Beta prior on detection probability, indexed by surveillance capacity tier.
+  # Kept relatively high for the INFUR pilot so latent stays near the visible
+  # series when reporting is nearly complete (under-ascertainment still applies,
+  # but IPW + tiny ascertainment must not explode country totals).
   priors:
-    high:   {alpha: 18.0, beta: 4.0}     # mean ~0.82
-    medium: {alpha: 10.0, beta: 8.0}     # mean ~0.56
-    low:    {alpha: 5.0,  beta: 12.0}    # mean ~0.29
+    high:   {alpha: 22.0, beta: 3.0}     # mean ~0.88
+    medium: {alpha: 16.0, beta: 5.0}     # mean ~0.76
+    low:    {alpha: 10.0, beta: 8.0}     # mean ~0.56
   # Disease-specific multiplier on detection (ASF in wild boar is harder to see)
   disease_multiplier:
     HPAI: 1.00
-    ASF: 0.85
+    ASF: 0.92
+
+# -----------------------------------------------------------------------------
+# Optional live / offline enrichment sources
+# -----------------------------------------------------------------------------
+sources:
+  beacon:
+    # Public API — no key. Set refresh=true to re-download from api.beaconbio.org.
+    api_base: "https://api.beaconbio.org"
+    refresh: false
+  padiweb:
+    # Public JSON listing — no key for free limited tier. CSV export needs login.
+    api_base: "https://padi-web.cirad.fr"
+    published_after: "2021-01-01"
+    refresh: false
+  eios:
+    # Public recent feed: WHO Pandemic Hub newsmap (EIOS-tagged open news).
+    # Full community-portal Excel/CSV still takes priority if dropped here.
+    newsmap_base: "https://portal.who.int/pandemichub/newsmap"
+    newsmap_rows: 100
+    export_dir: "data/raw/eios"
+    refresh: false
 
 logging:
   level: "INFO"

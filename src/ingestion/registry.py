@@ -24,6 +24,7 @@ from src.ingestion.glw4 import GLW4Adapter
 from src.ingestion.healthmap import HealthMapAdapter
 from src.ingestion.padiweb import PADIWebAdapter
 from src.ingestion.promed import ProMEDAdapter
+from src.ingestion.smr import SMRAdapter
 from src.ingestion.wahis import WAHISAdapter
 from src.ingestion.worldclim import WorldClimAdapter
 from src.utils.config import AppConfig, get_config
@@ -42,6 +43,7 @@ __all__ = [
 #: Ordered so that the primary official source is always ingested first.
 ADAPTER_REGISTRY: dict[str, type[SourceAdapter]] = {
     "wahis": WAHISAdapter,
+    "smr": SMRAdapter,
     "empresi": EMPRESiAdapter,
     "beacon": BEACONAdapter,
     "padiweb": PADIWebAdapter,

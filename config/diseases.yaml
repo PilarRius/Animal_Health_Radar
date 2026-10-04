@@ -13,6 +13,10 @@ diseases:
     code: "HPAI"
     name: "High pathogenicity avian influenza"
     wahis_name: "Influenza A viruses of high pathogenicity (Inf. with) (non-poultry including wild birds)"
+    wahis_name_aliases:
+      - "Influenza A viruses of high pathogenicity (Inf. with) (non-poultry including wild birds) (2017-)"
+      - "High pathogenicity avian influenza viruses (Inf. with) (poultry)"
+      - "Avian influenza A viruses of high pathogenicity (Inf. with) (bovines [Bos taurus]) (2025-)"
     pathogen: "Influenza A virus H5Nx"
     host_groups: ["poultry", "wild_birds"]
     species:
