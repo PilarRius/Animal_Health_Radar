@@ -26,9 +26,18 @@ htmlcov/
 .env
 .env.*
 !.env.example
+!.env.shinyapps.example
 *.pem
 *.key
 .cdsapirc
+
+# ---- shinyapps / rsconnect (local only) -------------------------------------
+.env.shinyapps
+.rsconnect/
+rsconnect-python/
+rsconnect/
+manifest.json
+_shiny_deploy/
 
 # ---- data -------------------------------------------------------------------
 # Raw and intermediate artefacts are reproducible from `scripts/run_pipeline.py`.

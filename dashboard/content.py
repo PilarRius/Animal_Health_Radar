@@ -1,10 +1,50 @@
-"""Static narrative panels: Intro, Data sources, Methodology."""
+"""Static narrative panels: Intro, Data sources, Methodology + shared explainers."""
 
 from __future__ import annotations
 
 from shiny import ui
 
 from dashboard.data_loader import AppData
+
+
+def tab_explainer(
+    question: str,
+    what: str,
+    how: str,
+    remember: str,
+) -> ui.Tag:
+    """Friendly one-screen briefing for an analysis tab."""
+    return ui.div(
+        {"class": "ahr-explain mb-3"},
+        ui.div(
+            {"class": "ahr-explain-q"},
+            ui.tags.strong("Question this tab answers: "),
+            question,
+        ),
+        ui.layout_columns(
+            ui.div(
+                ui.tags.strong("What you see"),
+                ui.p(what, class_="mb-0 small"),
+            ),
+            ui.div(
+                ui.tags.strong("How to use it"),
+                ui.p(how, class_="mb-0 small"),
+            ),
+            ui.div(
+                ui.tags.strong("Remember"),
+                ui.p(remember, class_="mb-0 small"),
+            ),
+            col_widths=(4, 4, 4),
+        ),
+    )
+
+
+def section_note(title: str, body: str) -> ui.Tag:
+    return ui.div(
+        {"class": "ahr-section-note mb-2"},
+        ui.tags.strong(title + " — "),
+        ui.tags.span(body, class_="small"),
+    )
 
 
 def intro_panel(data: AppData) -> ui.Tag:
@@ -34,11 +74,11 @@ def intro_panel(data: AppData) -> ui.Tag:
             ui.tags.strong("How to use this demo (2 minutes): "),
             "① Read this Intro → ② open ",
             ui.tags.em("Global Radar"),
-            " and switch map layers → ③ pick a country and ",
+            " to triage where to look → ③ open ",
             ui.tags.em("Investigate"),
-            " → ④ use ",
+            " and pick a country → ④ use ",
             ui.tags.em("Forecast & Replay"),
-            " to ask “what would we have known then?”",
+            " for “what next?” and “what would we have known then?”",
         ),
         ui.layout_columns(
             ui.card(
@@ -95,25 +135,64 @@ def intro_panel(data: AppData) -> ui.Tag:
             ),
             ui.h4("What each analysis tab answers"),
             ui.tags.ul(
-                ui.tags.li(ui.tags.strong("Global Radar — "), "Where should an epidemiologist look first?"),
+                ui.tags.li(
+                    ui.tags.strong("Global Radar — "),
+                    "Where should an epidemiologist look first this week? "
+                    "Triage map + ranked table of investigation priority (not outbreak counts).",
+                ),
                 ui.tags.li(
                     ui.tags.strong("Investigate — "),
-                    "For one country × disease: latent vs observed, why the alert, provenance, counterfactuals.",
+                    "For one country × disease: what is reported vs what we estimate is happening, "
+                    "why the alert fired, and which evidence families drove it.",
                 ),
                 ui.tags.li(
                     ui.tags.strong("Forecast & Replay — "),
-                    "What is likely next (7/14/28d), and what would we have known on a past date?",
+                    "What is likely in the next 7/14/28 days, and if we freeze knowledge on a past date, "
+                    "how early would the model have raised concern before official counts rose?",
                 ),
                 class_="mb-0",
             ),
         ),
-        ui.h4("This build at a glance"),
+        ui.h4("Key terms (used everywhere)"),
+        ui.layout_columns(
+            ui.card(
+                ui.card_header("As-of date"),
+                ui.p(
+                    "The knowledge cut-off shared by all analysis tabs. "
+                    "Only information that was already available on that day may enter the model."
+                ),
+            ),
+            ui.card(
+                ui.card_header("Latent vs observed"),
+                ui.p(
+                    "Observed = official burden visible so far. "
+                    "Latent = model estimate of underlying activity after accounting for delay and incomplete reporting."
+                ),
+            ),
+            ui.card(
+                ui.card_header("Reporting gap"),
+                ui.p(
+                    "Difference between estimated latent activity and what has been officially observed — "
+                    "a quantitative “how much might still be unseen?” signal."
+                ),
+            ),
+            col_widths=(4, 4, 4),
+        ),
+        ui.h4("This build at a glance", class_="mt-3"),
         ui.layout_columns(
             ui.value_box("Diseases", diseases or "—"),
             ui.value_box("Countries in panel", str(n_countries)),
             ui.value_box("As-of weeks scored", str(n_asof)),
             ui.value_box("Prediction rows", str(n_pred)),
             col_widths=(3, 3, 3, 3),
+        ),
+        ui.p(
+            "Geography is ",
+            ui.tags.strong("global"),
+            " (WOAH membership panel). Official WAHIS INFUR is worldwide; "
+            "epidemic-intelligence caches (PADI / BEACON / EIOS) may still be denser in some regions until re-fetched. "
+            "Countries without recent notifications can still appear with low / baseline scores.",
+            class_="small text-muted",
         ),
         ui.div(
             {"class": "alert alert-warning mt-3"},
@@ -143,9 +222,15 @@ def data_sources_panel(data: AppData) -> ui.Tag:
     return ui.div(
         {"class": "ahr-prose px-4 py-3"},
         ui.h2("Data sources"),
+        tab_explainer(
+            question="Which evidence streams feed the Radar, and how do we avoid double-counting?",
+            what="A layered catalogue: official WAHIS observation, epidemic intelligence, environment, and livestock context.",
+            how="Treat this as the evidence dictionary. When Investigate shows a contribution, map it back to a family here.",
+            remember="Twenty articles about one outbreak are not twenty independent events — independence clusters protect the signal.",
+        ),
         ui.p(
             "Sources are not added naïvely. Each record carries provenance (who, when knowable, lineage) "
-            "and an independence cluster so twenty news articles about one outbreak do not count as twenty events."
+            "and an independence cluster so duplicated media does not inflate risk."
         ),
         ui.h4("Primary official observation"),
         ui.tags.ul(
@@ -219,6 +304,12 @@ def methodology_panel(data: AppData) -> ui.Tag:
     return ui.div(
         {"class": "ahr-prose px-4 py-3"},
         ui.h2("Methodology"),
+        tab_explainer(
+            question="How do we estimate what is happening now, what is under-observed, and what is next?",
+            what="Four model families: reporting delay, latent nowcast, early warning, and short-term forecast — kept separate on purpose.",
+            how="Use this tab when you need the scientific defence. Use Investigate for the case-level “why”.",
+            remember="As-of discipline is non-negotiable: no future publications may leak into historical scores.",
+        ),
         ui.p(
             "Four questions → four model families, deliberately separate. Prefer transparent statistical "
             "models over black-box sequence learners for a datathon defence."
@@ -297,13 +388,4 @@ def methodology_panel(data: AppData) -> ui.Tag:
                 "See also docs/METHODOLOGY.md, docs/TARGET_DEFINITION.md, docs/DECISIONS.md, docs/MODEL_CARD.md"
             )
         ),
-    )
-
-
-def analysis_guide_strip() -> ui.Tag:
-    return ui.div(
-        {"class": "ahr-guide small px-3 py-2 mb-2 rounded"},
-        ui.tags.strong("Analysis guide: "),
-        "As-of = knowledge cut-off · Map = investigation priority (not raw outbreak counts) · "
-        "Investigate = latent vs observed + why · Replay = lead time demo",
     )

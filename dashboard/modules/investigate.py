@@ -6,11 +6,15 @@ import plotly.graph_objects as go
 from shiny import reactive, render, ui
 
 
+def _case_disease(input) -> str:  # noqa: ANN001
+    disease = str(input.disease() or "HPAI")
+    return "HPAI" if disease == "ALL" else disease
+
+
 def register(input, output, session, data, filtered_predictions):  # noqa: ANN001
     @reactive.calc
     def entity_key():
-        disease = input.inv_disease()
-        return f"{input.inv_country()}|{disease}"
+        return f"{input.country()}|{_case_disease(input)}"
 
     @reactive.calc
     def row():
@@ -26,12 +30,27 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
     def inv_header():
         r = row()
         if r is None:
-            return ui.h3(f"{entity_key()} — no prediction at as-of {input.as_of()}")
+            return ui.div(
+                {"class": "alert alert-secondary"},
+                ui.h3(f"{entity_key()} — no prediction at as-of {input.as_of()}", class_="h5 mb-1"),
+                ui.p(
+                    "Try another as-of date or disease. Not every country × disease × week has a scored row.",
+                    class_="mb-0 small",
+                ),
+            )
+        country_name = data.countries.get(str(r["country"]))
+        country_label = country_name.name if country_name is not None else r["country"]
+        disease_name = data.diseases.get(str(r["disease"]))
+        disease_label = disease_name.name if disease_name is not None else r["disease"]
         return ui.div(
-            ui.h3(f"{r['country']} · {r['disease']}"),
+            ui.h3(f"{country_label} · {disease_label}", class_="mb-2"),
             ui.tags.span(f"Alert: {r['alert_level']}", class_="badge bg-warning text-dark me-2"),
             ui.tags.span("MODEL ESTIMATE", class_="badge bg-secondary me-2"),
-            ui.tags.span(f"as-of {input.as_of()}", class_="badge bg-dark"),
+            ui.tags.span(f"as-of {input.as_of()}", class_="badge bg-dark me-2"),
+            ui.tags.span(
+                "Compare official observation with estimated latent activity",
+                class_="small text-muted",
+            ),
         )
 
     @render.ui
@@ -41,15 +60,36 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             return ui.p("Select a country/disease with available predictions at the global as-of.")
         f14 = r["forecast_14d"]
         return ui.layout_columns(
-            ui.value_box("Observed burden", f"{r['observed']:.1f}"),
+            ui.value_box(
+                "Observed (official)",
+                f"{r['observed']:.1f}",
+                showcase=ui.span("what is already visible", class_="small text-muted"),
+            ),
             ui.value_box(
                 "Estimated latent",
                 f"{r['latent_mean']:.1f} [{r['latent_lower']:.1f}–{r['latent_upper']:.1f}]",
+                showcase=ui.span("nowcast + uncertainty", class_="small text-muted"),
             ),
-            ui.value_box("Reporting gap", f"{r['reporting_gap']:.0%}"),
-            ui.value_box("EW probability", f"{r['early_warning_probability']:.0%}"),
-            ui.value_box("Expected delay", f"{r['expected_delay']:.0f} d"),
-            ui.value_box("Forecast 14d", f"{f14:.1f}" if f14 == f14 else "n/a"),
+            ui.value_box(
+                "Reporting gap",
+                f"{r['reporting_gap']:.0%}",
+                showcase=ui.span("latent above observed", class_="small text-muted"),
+            ),
+            ui.value_box(
+                "Early-warning probability",
+                f"{r['early_warning_probability']:.0%}",
+                showcase=ui.span("~28d official visibility risk", class_="small text-muted"),
+            ),
+            ui.value_box(
+                "Expected reporting delay",
+                f"{r['expected_delay']:.0f} d",
+                showcase=ui.span("onset → official visibility", class_="small text-muted"),
+            ),
+            ui.value_box(
+                "Forecast · 14 days",
+                f"{f14:.1f}" if f14 == f14 else "n/a",
+                showcase=ui.span("short-term trajectory", class_="small text-muted"),
+            ),
             col_widths=(2, 2, 2, 2, 2, 2),
         )
 
@@ -57,7 +97,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
     def inv_timeseries():
         series = data.entity_series(entity_key())
         if series.empty:
-            return ui.p("No time series.")
+            return ui.p("No time series for this case.")
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=series["as_of_date"], y=series["observed"], name="Observed (official)",
@@ -68,20 +108,24 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             line=dict(width=0), showlegend=False,
         ))
         fig.add_trace(go.Scatter(
-            x=series["as_of_date"], y=series["latent_lower"], name="Uncertainty",
+            x=series["as_of_date"], y=series["latent_lower"], name="Latent uncertainty band",
             fill="tonexty", line=dict(width=0), fillcolor="rgba(191,97,106,0.25)",
         ))
         fig.add_trace(go.Scatter(
             x=series["as_of_date"], y=series["latent_mean"], name="Estimated latent activity",
             line=dict(color="#bf616a", width=2),
         ))
-        # Mark global as-of
         fig.add_vline(x=input.as_of(), line_dash="dash", line_color="#ebcb8b")
         fig.update_layout(
-            title="Observed vs estimated latent activity (MODEL ESTIMATE)",
-            height=420, margin=dict(l=40, r=20, t=50, b=40),
+            title=(
+                "Nowcast: official observed vs estimated latent activity "
+                f"(as-of cut-off = {input.as_of()}) · MODEL ESTIMATE"
+            ),
+            height=420, margin=dict(l=40, r=20, t=60, b=40),
             paper_bgcolor="#0b1220", plot_bgcolor="#121a2b", font_color="#e5e9f0",
             legend=dict(orientation="h"),
+            yaxis_title="Burden index (model scale)",
+            xaxis_title="As-of week",
         )
         return ui.HTML(fig.to_html(include_plotlyjs="cdn", full_html=False))
 
@@ -90,8 +134,9 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         timeline = data.evidence_timeline(entity_key(), str(input.as_of()))
         if timeline.empty:
             return ui.p(
-                "No timeline events under this as-of (run ingest so interim signals are available, "
-                "or wait until the model crosses WATCH/ALERT).",
+                "No timeline events under this as-of yet. "
+                "That can mean sparse intelligence for this case, or that the model has not crossed WATCH/ALERT. "
+                "Still use the latent-vs-observed chart and contributions below.",
                 class_="text-muted",
             )
         items = []
@@ -113,11 +158,19 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         alert_id = f"AHR-{r['country']}-{r['disease']}-{r['as_of_date']}"
         explanation = data.explanation_for(alert_id)
         if not explanation:
-            return ui.p("No explanation artefact for this alert.")
+            return ui.div(
+                ui.p("No stored explanation artefact for this exact alert id."),
+                ui.p(
+                    f"Alert level is {r['alert_level']} with early-warning probability "
+                    f"{r['early_warning_probability']:.0%} and reporting gap {r['reporting_gap']:.0%}. "
+                    "Use contributions / counterfactuals when available, or Methodology for model families.",
+                    class_="small text-muted mb-0",
+                ),
+            )
         return ui.div(
-            ui.h5(explanation.get("headline", "")),
+            ui.h5(explanation.get("headline", ""), class_="h6"),
             ui.p(explanation.get("narrative", "")),
-            ui.p(f"Method: {explanation.get('method', '')}", class_="small text-muted"),
+            ui.p(f"Method: {explanation.get('method', '')}", class_="small text-muted mb-0"),
         )
 
     @render.ui
@@ -129,14 +182,26 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         explanation = data.explanation_for(alert_id) or {}
         items = explanation.get("counterfactuals") or []
         if not items:
-            return ui.p("No counterfactuals computed.")
-        blocks = []
+            return ui.p(
+                "No counterfactual ablations stored for this case. "
+                "When present, they show how the early-warning probability changes if a signal family is removed.",
+                class_="text-muted mb-0",
+            )
+        blocks = [
+            ui.p(
+                "Each line: probability with the family → without it. "
+                "A large drop means that family was material to the alert.",
+                class_="small text-muted",
+            )
+        ]
         for item in items[:6]:
             blocks.append(
                 ui.p(
-                    f"{item.get('family')}: {item.get('probability_with', 0):.0%} → "
-                    f"{item.get('probability_without', 0):.0%} "
-                    f"({item.get('interpretation', '')})"
+                    ui.tags.strong(f"{item.get('family')}: "),
+                    f"{item.get('probability_with', 0):.0%} → "
+                    f"{item.get('probability_without', 0):.0%} ",
+                    ui.tags.span(f"({item.get('interpretation', '')})", class_="text-muted"),
+                    class_="mb-1",
                 )
             )
         return ui.div(*blocks)
@@ -153,13 +218,25 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         rows = explanation.get("top_contributions") or []
         frame = pd.DataFrame(rows)
         if frame.empty:
-            return render.DataGrid(pd.DataFrame({"note": ["No contributions"]}))
+            return render.DataGrid(pd.DataFrame({
+                "note": ["No contribution rows stored for this alert — see Methodology for feature families."]
+            }))
         keep = [c for c in ("feature", "family", "value", "contribution", "direction") if c in frame.columns]
-        return render.DataGrid(frame[keep], height="280px")
+        view = frame[keep].rename(columns={
+            "feature": "Feature",
+            "family": "Evidence family",
+            "value": "Value",
+            "contribution": "Contribution",
+            "direction": "Direction",
+        })
+        return render.DataGrid(view, height="280px")
 
     @render.data_frame
     def inv_provenance():
-        return render.DataGrid(
-            data.provenance_for_entity(input.inv_country(), input.inv_disease(), str(input.as_of())),
-            height="280px",
-        )
+        frame = data.provenance_for_entity(input.country(), _case_disease(input), str(input.as_of()))
+        if frame.empty:
+            import pandas as pd
+            return render.DataGrid(pd.DataFrame({
+                "note": ["No provenance rows under this as-of for the selected case."]
+            }))
+        return render.DataGrid(frame, height="280px")

@@ -1,11 +1,12 @@
 """Offline WAHIS INFUR / SMR field mappings (no API).
 
-Maps pilot export disease names and country labels onto the AHR panel codes.
+Maps WAHIS export disease names and country labels onto the AHR panel codes.
 """
 
 from __future__ import annotations
 
 import re
+import unicodedata
 from functools import lru_cache
 
 from src.utils.config import load_countries, load_diseases
@@ -25,13 +26,15 @@ _DISEASE_CONTAINS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"avian\s+influenza\s+a\s+viruses\s+of\s+high\s+pathogenicity", re.I), "HPAI"),
 ]
 
-# Country-name aliases beyond countries.yaml `name` fields.
+# Country-name aliases beyond countries.yaml `name` fields (WAHIS export labels).
 _COUNTRY_ALIASES: dict[str, str] = {
     "russia": "RUS",
     "russian federation": "RUS",
     "turkiye": "TUR",
     "türkiye": "TUR",
     "turkey": "TUR",
+    "türkiye (rep. of)": "TUR",
+    "turkiye (rep. of)": "TUR",
     "moldova (rep. of)": "MDA",
     "republic of moldova": "MDA",
     "korea (rep. of)": "KOR",
@@ -43,10 +46,32 @@ _COUNTRY_ALIASES: dict[str, str] = {
     "north macedonia": "MKD",
     "viet nam": "VNM",
     "vietnam": "VNM",
+    "iran": "IRN",
     "iran (islamic rep. of)": "IRN",
     "syria": "SYR",
     "syrian arab republic": "SYR",
+    "china (people's rep. of)": "CHN",
+    "chinese taipei": "TWN",
+    "congo (dem. rep. of the)": "COD",
+    "congo (rep. of the)": "COG",
+    "cote d'ivoire": "CIV",
+    "dominican (rep.)": "DOM",
+    "dominican republic": "DOM",
+    "south sudan (rep. of)": "SSD",
+    "cabo verde": "CPV",
+    "laos": "LAO",
+    "tanzania": "TZA",
+    "palestine": "PSE",
+    "eswatini": "SWZ",
+    "swaziland": "SWZ",
 }
+
+
+def _fold(text: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(text))
+    ascii_text = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    cleaned = "".join(ch if ch.isalnum() or ch.isspace() else " " for ch in ascii_text)
+    return " ".join(cleaned.lower().split())
 
 
 def is_hpai_name(name: str) -> bool:
@@ -65,7 +90,6 @@ def map_disease_code(raw_name: str | None) -> str | None:
     if not text:
         return None
     diseases = load_diseases()
-    # Exact wahis_name match first
     for code, spec in diseases.items():
         if text.lower() == spec.wahis_name.lower():
             return code
@@ -79,10 +103,12 @@ def map_disease_code(raw_name: str | None) -> str | None:
 
 @lru_cache(maxsize=1)
 def _name_to_iso() -> dict[str, str]:
-    mapping: dict[str, str] = dict(_COUNTRY_ALIASES)
+    mapping: dict[str, str] = {}
+    for key, iso in _COUNTRY_ALIASES.items():
+        mapping[_fold(key)] = iso
     for iso, spec in load_countries().items():
-        mapping[spec.name.lower()] = iso
-        mapping[iso.lower()] = iso
+        mapping[_fold(iso)] = iso
+        mapping[_fold(spec.name)] = iso
     return mapping
 
 
@@ -95,7 +121,7 @@ def map_country_iso3(country_name: str | None, iso_hint: str | None = None) -> s
             return hint
     if country_name is None:
         return None
-    key = str(country_name).strip().lower()
+    key = _fold(country_name)
     if not key:
         return None
     iso = _name_to_iso().get(key)
