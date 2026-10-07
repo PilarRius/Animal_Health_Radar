@@ -7,6 +7,8 @@ import math
 import plotly.graph_objects as go
 from shiny import reactive, render, ui
 
+from dashboard.filter_state import case_disease, selected_as_of, selected_country
+
 
 def _fmt_prob(value) -> str:
     try:
@@ -21,15 +23,10 @@ def _fmt_prob(value) -> str:
     return f"{x:.0%}"
 
 
-def _case_disease(input) -> str:  # noqa: ANN001
-    disease = str(input.disease() or "HPAI")
-    return "HPAI" if disease == "ALL" else disease
-
-
 def register(input, output, session, data, filtered_predictions):  # noqa: ANN001
     @reactive.calc
     def entity_key():
-        return f"{input.country()}|{_case_disease(input)}"
+        return f"{selected_country(input)}|{case_disease(input)}"
 
     @reactive.calc
     def series():
@@ -38,13 +35,13 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
     @reactive.calc
     def current_row():
         frame = series()
-        as_of = str(input.as_of())
+        as_of = selected_as_of(input)
         hit = frame.loc[frame["as_of_date"].astype(str) == as_of]
         return hit.iloc[0] if len(hit) else None
 
     @reactive.calc
     def replay_payload():
-        return data.replay(entity_key(), str(input.as_of()))
+        return data.replay(entity_key(), selected_as_of(input))
 
     @render.ui
     def fc_summary():
@@ -107,11 +104,12 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             x=frame["as_of_date"], y=frame["observed"], name="Observed official",
             line=dict(color="#eceff4", dash="dot"),
         ))
-        fig.add_vline(x=input.as_of(), line_dash="dash", line_color="#a3be8c")
+        as_of = selected_as_of(input)
+        fig.add_vline(x=as_of, line_dash="dash", line_color="#a3be8c")
         fig.update_layout(
             title=(
                 "Short-term probabilistic forecasts vs official observation "
-                f"(cut-off {input.as_of()}) · MODEL ESTIMATE"
+                f"(cut-off {as_of}) · MODEL ESTIMATE"
             ),
             height=440, paper_bgcolor="#0b1220", plot_bgcolor="#121a2b",
             font_color="#e5e9f0", legend=dict(orientation="h"),
@@ -133,8 +131,8 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             if lead is not None
             else "n/a (no subsequent official activity in window, or no prior alert)"
         )
-        country = input.country()
-        disease = _case_disease(input)
+        country = selected_country(input)
+        disease = case_disease(input)
         return ui.div(
             ui.h5(
                 f"Replay snapshot · {country} · {disease} · as-of {payload['as_of']}",
@@ -180,7 +178,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
     @render.data_frame
     def fc_replay_table():
         frame = series()
-        as_of = str(input.as_of())
+        as_of = selected_as_of(input)
         frame = frame.copy()
         frame["as_of_date"] = frame["as_of_date"].astype(str)
         frame["replay_role"] = frame["as_of_date"].map(

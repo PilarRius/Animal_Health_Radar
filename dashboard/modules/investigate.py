@@ -5,21 +5,18 @@ from __future__ import annotations
 import plotly.graph_objects as go
 from shiny import reactive, render, ui
 
-
-def _case_disease(input) -> str:  # noqa: ANN001
-    disease = str(input.disease() or "HPAI")
-    return "HPAI" if disease == "ALL" else disease
+from dashboard.filter_state import case_disease, selected_as_of, selected_country
 
 
 def register(input, output, session, data, filtered_predictions):  # noqa: ANN001
     @reactive.calc
     def entity_key():
-        return f"{input.country()}|{_case_disease(input)}"
+        return f"{selected_country(input)}|{case_disease(input)}"
 
     @reactive.calc
     def row():
         key = entity_key()
-        as_of = str(input.as_of())
+        as_of = selected_as_of(input)
         frame = data.predictions
         hit = frame.loc[
             (frame["entity_key"] == key) & (frame["as_of_date"].astype(str) == as_of)
@@ -29,10 +26,11 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
     @render.ui
     def inv_header():
         r = row()
+        as_of = selected_as_of(input)
         if r is None:
             return ui.div(
                 {"class": "alert alert-secondary"},
-                ui.h3(f"{entity_key()} — no prediction at as-of {input.as_of()}", class_="h5 mb-1"),
+                ui.h3(f"{entity_key()} — no prediction at as-of {as_of}", class_="h5 mb-1"),
                 ui.p(
                     "Try another as-of date or disease. Not every country × disease × week has a scored row.",
                     class_="mb-0 small",
@@ -46,7 +44,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             ui.h3(f"{country_label} · {disease_label}", class_="mb-2"),
             ui.tags.span(f"Alert: {r['alert_level']}", class_="badge bg-warning text-dark me-2"),
             ui.tags.span("MODEL ESTIMATE", class_="badge bg-secondary me-2"),
-            ui.tags.span(f"as-of {input.as_of()}", class_="badge bg-dark me-2"),
+            ui.tags.span(f"as-of {as_of}", class_="badge bg-dark me-2"),
             ui.tags.span(
                 "Compare official observation with estimated latent activity",
                 class_="small text-muted",
@@ -115,11 +113,12 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             x=series["as_of_date"], y=series["latent_mean"], name="Estimated latent activity",
             line=dict(color="#bf616a", width=2),
         ))
-        fig.add_vline(x=input.as_of(), line_dash="dash", line_color="#ebcb8b")
+        as_of = selected_as_of(input)
+        fig.add_vline(x=as_of, line_dash="dash", line_color="#ebcb8b")
         fig.update_layout(
             title=(
                 "Nowcast: official observed vs estimated latent activity "
-                f"(as-of cut-off = {input.as_of()}) · MODEL ESTIMATE"
+                f"(as-of cut-off = {as_of}) · MODEL ESTIMATE"
             ),
             height=420, margin=dict(l=40, r=20, t=60, b=40),
             paper_bgcolor="#0b1220", plot_bgcolor="#121a2b", font_color="#e5e9f0",
@@ -131,7 +130,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
 
     @render.ui
     def inv_timeline():
-        timeline = data.evidence_timeline(entity_key(), str(input.as_of()))
+        timeline = data.evidence_timeline(entity_key(), selected_as_of(input))
         if timeline.empty:
             return ui.p(
                 "No timeline events under this as-of yet. "
@@ -233,7 +232,9 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
 
     @render.data_frame
     def inv_provenance():
-        frame = data.provenance_for_entity(input.country(), _case_disease(input), str(input.as_of()))
+        frame = data.provenance_for_entity(
+            selected_country(input), case_disease(input), selected_as_of(input)
+        )
         if frame.empty:
             import pandas as pd
             return render.DataGrid(pd.DataFrame({

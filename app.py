@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 from shiny import App, reactive, render
 
 from dashboard.data_loader import AppData
+from dashboard.filter_state import register_filter_sync, selected_as_of, selected_disease
 from dashboard.layouts.shell import app_ui
 from dashboard.modules import forecast as forecast_mod
 from dashboard.modules import investigate as investigate_mod
@@ -28,9 +29,11 @@ DATA = AppData.load(ROOT)
 
 
 def server(input, output, session):  # noqa: ANN001
+    register_filter_sync(input, session)
+
     @reactive.calc
     def filtered_predictions():
-        return DATA.predictions_as_of(input.as_of(), input.disease())
+        return DATA.predictions_as_of(selected_as_of(input), selected_disease(input))
 
     radar_mod.register(input, output, session, DATA, filtered_predictions)
     investigate_mod.register(input, output, session, DATA, filtered_predictions)

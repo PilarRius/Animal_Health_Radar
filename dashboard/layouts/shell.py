@@ -1,4 +1,4 @@
-"""Application shell — shared top filters; tab-specific controls only when needed."""
+"""Application shell — WOAH-inspired header + rounded tabs; filters live in each analysis sidebar."""
 
 from __future__ import annotations
 
@@ -27,376 +27,556 @@ LAYER_HELP = ui.tags.ul(
 def _ahr_css() -> ui.Tag:
     return ui.tags.style(
         """
-        .ahr-hero {
-          background: linear-gradient(135deg, #0b1220 0%, #1a2a3a 55%, #243447 100%);
-          border: 1px solid #3b4a5a;
-          color: #eceff4;
+        @import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap");
+
+        :root {
+          --woah-blue: #004B87;
+          --woah-blue-deep: #003466;
+          --woah-blue-mid: #1A6BA8;
+          --woah-sky: #E8F2FA;
+          --woah-coral: #E4572E;
+          --woah-coral-soft: #FDE8E1;
+          --woah-sage: #2F7D6D;
+          --woah-ink: #1C2B36;
+          --woah-muted: #5C6B78;
+          --woah-paper: #F5F8FB;
+          --woah-line: #C5D6E4;
+          --ahr-font: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
         }
-        .ahr-hero h2 { color: #eceff4; letter-spacing: 0.02em; }
+
+        html, body {
+          font-family: var(--ahr-font);
+          color: var(--woah-ink);
+          background:
+            radial-gradient(1200px 500px at 10% -10%, rgba(26, 107, 168, 0.12), transparent 55%),
+            radial-gradient(900px 420px at 100% 0%, rgba(228, 87, 46, 0.07), transparent 50%),
+            var(--woah-paper);
+          margin: 0;
+        }
+
+        .ahr-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+        .ahr-header {
+          background:
+            linear-gradient(120deg, var(--woah-blue-deep) 0%, var(--woah-blue) 48%, var(--woah-blue-mid) 100%);
+          color: #fff;
+          padding: 1.25rem 1.5rem 1.1rem;
+          position: relative;
+          overflow: hidden;
+        }
+        .ahr-header::after {
+          content: "";
+          position: absolute;
+          right: -40px;
+          top: -60px;
+          width: 280px;
+          height: 280px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(228, 87, 46, 0.28) 0%, transparent 68%);
+          pointer-events: none;
+        }
+        .ahr-header-inner {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 1.25rem;
+          flex-wrap: wrap;
+          position: relative;
+          z-index: 1;
+        }
+        .ahr-brand {
+          font-size: 0.72rem;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          opacity: 0.88;
+          font-weight: 600;
+          margin: 0 0 0.35rem;
+          color: #fff;
+        }
+        .ahr-title {
+          font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+          font-weight: 700;
+          margin: 0;
+          letter-spacing: -0.02em;
+          line-height: 1.15;
+          color: #fff;
+        }
+        .ahr-subtitle {
+          margin: 0.4rem 0 0;
+          font-size: 0.95rem;
+          opacity: 0.92;
+          font-weight: 400;
+          max-width: 36rem;
+        }
+        .ahr-header-meta {
+          text-align: right;
+          font-size: 0.8rem;
+          line-height: 1.5;
+        }
+        .ahr-pill {
+          display: inline-block;
+          background: rgba(255, 255, 255, 0.14);
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          border-radius: 999px;
+          padding: 0.2rem 0.7rem;
+          margin-bottom: 0.35rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+        }
+        .ahr-accent-bar {
+          height: 4px;
+          background: linear-gradient(90deg, var(--woah-coral) 0%, #F0A28A 35%, var(--woah-sage) 100%);
+        }
+
+        .ahr-main {
+          max-width: 1400px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 1.1rem 1.25rem 2.5rem;
+          flex: 1;
+        }
+
+        /* Soft pill tabs — WOAH blues, coral active cue */
+        .ahr-shell .nav-tabs {
+          border-bottom: none;
+          gap: 0.4rem;
+          margin-bottom: 1.15rem;
+          flex-wrap: wrap;
+          padding: 0.35rem;
+          background: rgba(255, 255, 255, 0.72);
+          border: 1px solid var(--woah-line);
+          border-radius: 16px;
+          box-shadow: 0 1px 2px rgba(0, 52, 102, 0.04);
+        }
+        .ahr-shell .nav-tabs .nav-item { margin-bottom: 0; }
+        .ahr-shell .nav-tabs .nav-link {
+          border: 1px solid transparent;
+          color: var(--woah-blue);
+          font-weight: 600;
+          font-size: 0.88rem;
+          padding: 0.55rem 1.05rem;
+          border-radius: 12px;
+          background: transparent;
+          transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+          white-space: nowrap;
+        }
+        .ahr-shell .nav-tabs .nav-link:hover {
+          color: var(--woah-blue-deep);
+          background: var(--woah-sky);
+        }
+        .ahr-shell .nav-tabs .nav-link.active {
+          color: #fff;
+          background: linear-gradient(145deg, var(--woah-blue) 0%, var(--woah-blue-mid) 100%);
+          border-color: transparent;
+          box-shadow: 0 4px 14px rgba(0, 75, 135, 0.28);
+          position: relative;
+        }
+        .ahr-shell .nav-tabs .nav-link.active::after {
+          content: "";
+          position: absolute;
+          left: 22%;
+          right: 22%;
+          bottom: 5px;
+          height: 2px;
+          border-radius: 2px;
+          background: var(--woah-coral);
+        }
+
+        .ahr-hero {
+          background: linear-gradient(135deg, var(--woah-blue-deep) 0%, var(--woah-blue) 55%, #1A6BA8 100%);
+          border: none;
+          color: #fff;
+          border-radius: 14px;
+        }
+        .ahr-hero h2 { color: #fff; letter-spacing: 0.02em; }
         .ahr-hero h4 { color: #ffffff !important; opacity: 1; }
         .ahr-flow {
-          background: #121a2b;
-          border: 1px dashed #5e81ac;
-          color: #d8dee9;
+          background: rgba(0, 0, 0, 0.22);
+          border: 1px dashed rgba(255, 255, 255, 0.35);
+          color: #e8f2fa;
           font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
           font-size: 0.95rem;
+          border-radius: 8px;
         }
-        .ahr-prose { max-width: 1100px; margin: 0 auto; color: #1f2937; }
-        .ahr-prose h2, .ahr-prose h4 { color: #0f172a; }
-        .ahr-prose p, .ahr-prose li, .ahr-prose ul { color: #1f2937; }
-        .ahr-prose .text-muted { color: #4b5563 !important; }
+        .ahr-prose { max-width: 1100px; margin: 0 auto; color: var(--woah-ink); }
+        .ahr-prose h2, .ahr-prose h4 { color: var(--woah-blue-deep); }
+        .ahr-prose p, .ahr-prose li, .ahr-prose ul { color: var(--woah-ink); }
+        .ahr-prose .text-muted { color: var(--woah-muted) !important; }
         .ahr-prose .card {
-          background: #121a2b;
-          border-color: #3b4a5a;
-          color: #e5e9f0;
+          background: #fff;
+          border-color: var(--woah-line);
+          color: var(--woah-ink);
+          border-radius: 12px;
         }
-        .ahr-prose .card p, .ahr-prose .card li, .ahr-prose .card strong {
-          color: #e5e9f0;
-        }
+        .ahr-prose .card p, .ahr-prose .card li, .ahr-prose .card strong { color: var(--woah-ink); }
         .ahr-prose .card-header {
-          background: #1c2434;
-          border-bottom-color: #3b4a5a;
-          color: #eceff4;
+          background: var(--woah-sky);
+          border-bottom-color: var(--woah-line);
+          color: var(--woah-blue-deep);
           font-weight: 600;
         }
         .ahr-callout {
-          background: #eef2ff;
-          border: 1px solid #c7d2fe;
-          border-radius: 0.5rem;
-          color: #1e3a5f;
+          background: var(--woah-sky);
+          border: 1px solid var(--woah-line);
+          border-left: 4px solid var(--woah-blue);
+          border-radius: 0.55rem;
+          color: var(--woah-blue-deep);
           padding: 1rem 1.25rem;
           margin-bottom: 1rem;
         }
-        .ahr-callout h4 { color: #1e3a5f !important; margin-top: 0; }
-        .ahr-callout p, .ahr-callout li { color: #1e3a5f !important; }
+        .ahr-callout h4 { color: var(--woah-blue-deep) !important; margin-top: 0; }
+        .ahr-callout p, .ahr-callout li { color: var(--woah-ink) !important; }
         .ahr-explain {
-          background: #f8fafc;
-          border: 1px solid #cbd5e1;
-          border-left: 4px solid #2563eb;
-          border-radius: 0.5rem;
+          background: #fff;
+          border: 1px solid var(--woah-line);
+          border-left: 4px solid var(--woah-coral);
+          border-radius: 0.55rem;
           padding: 0.85rem 1rem;
-          color: #0f172a;
+          color: var(--woah-ink);
+          box-shadow: 0 1px 2px rgba(0, 52, 102, 0.04);
         }
-        .ahr-explain-q {
-          margin-bottom: 0.65rem;
-          color: #0f172a;
-        }
-        .ahr-explain strong { color: #0f172a; }
-        .ahr-explain p { color: #334155 !important; }
+        .ahr-explain-q { margin-bottom: 0.65rem; color: var(--woah-blue-deep); }
+        .ahr-explain strong { color: var(--woah-blue-deep); }
+        .ahr-explain p { color: var(--woah-muted) !important; }
         .ahr-section-note {
-          background: #fffbeb;
-          border: 1px solid #fde68a;
+          background: #fff;
+          border: 1px solid var(--woah-line);
+          border-left: 3px solid var(--woah-sage);
           border-radius: 0.4rem;
           padding: 0.55rem 0.8rem;
-          color: #78350f;
+          color: var(--woah-ink);
         }
-        .ahr-layer-help { padding-left: 1.1rem; color: #475569; }
+        .ahr-layer-help { padding-left: 1.1rem; color: var(--woah-muted); }
         .ahr-layer-help li { margin-bottom: 0.35rem; }
-        .navbar { border-bottom: 1px solid #3b4a5a; }
-        .ahr-tab-body { padding: 0 0.25rem 1rem; }
-        .ahr-global-filters {
-          background: #f8fafc;
-          border-bottom: 1px solid #e2e8f0;
-          padding-bottom: 0.5rem;
+        .ahr-tab-body { padding: 0 0.05rem 1rem; }
+
+        .ahr-sidebar-block {
+          margin-bottom: 0.85rem;
         }
-        .ahr-filter-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.75rem 1rem;
-          align-items: flex-end;
+        .ahr-sidebar-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--woah-blue);
+          margin: 0 0 0.45rem;
         }
-        .ahr-filter-item {
-          flex: 1 1 200px;
-          min-width: 180px;
+        .bslib-sidebar-layout > .sidebar {
+          background: #fff !important;
+          border-right: 1px solid var(--woah-line) !important;
+        }
+        .card {
+          border-color: var(--woah-line);
+          border-radius: 12px;
+        }
+        .card-header {
+          background: var(--woah-sky);
+          color: var(--woah-blue-deep);
+          font-weight: 600;
         }
         """
     )
 
 
 def app_ui(data: AppData):
-    disease_choices = {"ALL": "All diseases (Radar overview)", **{k: v.name for k, v in data.diseases.items()}}
+    disease_all = {"ALL": "All diseases (Radar overview)", **{k: v.name for k, v in data.diseases.items()}}
+    disease_case = {k: v.name for k, v in data.diseases.items()}
     as_of_choices = {d: d for d in data.as_of_dates}
     default_as_of = data.as_of_dates[-1] if data.as_of_dates else None
     country_choices = {iso: spec.name for iso, spec in data.countries.items()}
     default_country = "POL" if "POL" in country_choices else next(iter(country_choices), None)
+    default_disease = "HPAI" if "HPAI" in disease_case else next(iter(disease_case), None)
 
-    # Filters live in the page header but are shown only on analysis tabs.
-    # Country is hidden on Global Radar (map/table triage only).
-    analysis_tabs = (
-        "input.main_nav === 'Global Radar' || "
-        "input.main_nav === 'Investigate' || "
-        "input.main_nav === 'Forecast & Replay'"
-    )
-    case_tabs = (
-        "input.main_nav === 'Investigate' || "
-        "input.main_nav === 'Forecast & Replay'"
-    )
-
-    global_filters = ui.panel_conditional(
-        analysis_tabs,
+    return ui.page_fluid(
+        _ahr_css(),
         ui.div(
-            {"class": "ahr-global-filters px-3 pt-2"},
+            {"class": "ahr-shell"},
             ui.div(
-                {"class": "ahr-filter-row"},
+                {"class": "ahr-header"},
                 ui.div(
-                    {"class": "ahr-filter-item"},
-                    ui.input_select(
-                        "as_of",
-                        "As-of date (knowledge cut-off)",
-                        as_of_choices,
-                        selected=default_as_of,
-                    ),
-                ),
-                ui.div(
-                    {"class": "ahr-filter-item"},
-                    ui.input_select(
-                        "disease",
-                        "Disease",
-                        disease_choices,
-                        selected="HPAI",
-                    ),
-                ),
-                ui.panel_conditional(
-                    case_tabs,
+                    {"class": "ahr-header-inner"},
                     ui.div(
-                        {"class": "ahr-filter-item"},
-                        ui.input_select(
-                            "country",
-                            "Country",
-                            country_choices,
-                            selected=default_country,
-                        ),
-                    ),
-                ),
-            ),
-            ui.panel_conditional(
-                "input.main_nav === 'Global Radar'",
-                ui.p(
-                    "As-of and disease filter the map and priority queue. "
-                    "Country is selected on Investigate / Forecast.",
-                    class_="small text-muted mb-0",
-                ),
-            ),
-            ui.panel_conditional(
-                case_tabs,
-                ui.p(
-                    "As-of, disease, and country apply to this case view. "
-                    "If Disease is “All”, Investigate/Forecast use HPAI.",
-                    class_="small text-muted mb-0",
-                ),
-            ),
-        ),
-    )
-
-    return ui.page_navbar(
-        ui.nav_panel("Intro", intro_panel(data)),
-        ui.nav_panel(
-            "Global Radar",
-            ui.div(
-                {"class": "ahr-tab-body px-3 pt-2"},
-                tab_explainer(
-                    question="Where should an epidemiologist look first this week?",
-                    what="A triage map and ranked country table built from MODEL ESTIMATES "
-                    "(investigation priority, early-warning probability, latent activity, reporting gap).",
-                    how="1) Keep Investigation priority as the default layer. "
-                    "2) Use as-of / disease above the map. "
-                    "3) Note a top country in the priority queue, then open Investigate and select it there.",
-                    remember="Colours are not confirmed outbreak counts. Darker = higher estimated need to look — not proof of infection.",
-                ),
-                ui.layout_sidebar(
-                    ui.sidebar(
-                        ui.h5("Map only"),
-                        ui.input_select(
-                            "map_layer",
-                            "Colour the map by",
-                            {
-                                "investigation_priority": "Investigation priority (start here)",
-                                "early_warning_probability": "Early warning probability",
-                                "latent_mean": "Estimated latent activity",
-                                "reporting_gap": "Estimated reporting gap",
-                                "forecast_14d": "Forecast · 14 days",
-                                "forecast_28d": "Forecast · 28 days",
-                                "environmental_signal": "Environmental context signal",
-                                "intelligence_signal": "Intelligence context signal",
-                            },
-                        ),
-                        ui.p("Layer guide", class_="fw-semibold small mb-1 mt-2"),
-                        LAYER_HELP,
-                        ui.hr(),
+                        ui.p({"class": "ahr-brand"}, "WOAH Datathon · Challenge 1"),
+                        ui.h1({"class": "ahr-title"}, "Animal Health Radar"),
                         ui.p(
-                            "Country is chosen on Investigate / Forecast only. "
-                            "After you spot a priority country here, switch tabs and select it there.",
-                            class_="text-muted small mb-0",
+                            {"class": "ahr-subtitle"},
+                            "Early detection · nowcasting · short-term forecasting under delayed reporting",
                         ),
-                        width=320,
                     ),
-                    ui.div(ui.output_text("banner"), class_="alert alert-warning py-2"),
-                    section_note(
-                        "Summary strip",
-                        "How many places look elevated right now under the current as-of and disease filter.",
-                    ),
-                    ui.output_ui("radar_kpis"),
-                    section_note(
-                        "Map",
-                        "Choropleth of the selected layer. Hover a country for latent vs observed, gap, and alert level.",
-                    ),
-                    ui.output_ui("radar_map"),
-                    ui.card(
-                        ui.card_header("Priority queue — countries sorted for investigation"),
-                        section_note(
-                            "How to read the table",
-                            "Top rows = highest investigation priority. Open Investigate and select that country there.",
-                        ),
-                        ui.output_data_frame("radar_table"),
+                    ui.div(
+                        {"class": "ahr-header-meta"},
+                        ui.div({"class": "ahr-pill"}, "Model estimates — not confirmed outbreaks"),
+                        ui.div(f"data_mode = {data.data_mode}"),
                     ),
                 ),
             ),
-        ),
-        ui.nav_panel(
-            "Investigate",
+            ui.div({"class": "ahr-accent-bar"}),
             ui.div(
-                {"class": "ahr-tab-body px-3 pt-2"},
-                tab_explainer(
-                    question="For this country × disease, what is officially visible versus what we estimate is happening — and why?",
-                    what="A case file: KPIs, latent-vs-observed time series, evidence timeline, “why this alert”, "
-                    "counterfactual ablations, feature contributions, and provenance.",
-                    how="1) Set Country, Disease, and As-of above. "
-                    "2) Compare Observed vs Estimated latent and the Reporting gap. "
-                    "3) Read Why this alert + Counterfactuals before acting on a score.",
-                    remember="This is epidemic intelligence support, not a confirmation of outbreak. Official verification still decides response.",
-                ),
-                ui.layout_sidebar(
-                    ui.sidebar(
-                        ui.h5("This case"),
-                        ui.p(
-                            "Uses Country, Disease, and As-of from the filter bar above. "
-                            "No duplicated filters in this sidebar.",
-                            class_="small text-muted",
-                        ),
-                        ui.hr(),
-                        ui.p(ui.tags.strong("Reading order"), class_="small mb-1"),
-                        ui.tags.ol(
-                            {"class": "small mb-0"},
-                            ui.tags.li("KPIs (gap & early-warning)"),
-                            ui.tags.li("Latent vs observed chart"),
-                            ui.tags.li("Why this alert"),
-                            ui.tags.li("Counterfactuals & contributions"),
-                            ui.tags.li("Provenance"),
-                        ),
-                        width=280,
-                    ),
-                    ui.output_ui("inv_header"),
-                    section_note(
-                        "Case snapshot",
-                        "Observed = official visible burden. Latent = estimated underlying activity. Gap = how much may still be unseen.",
-                    ),
-                    ui.output_ui("inv_kpis"),
-                    section_note(
-                        "Nowcast view",
-                        "Solid red = estimated latent mean; band = uncertainty; blue = official observed. "
-                        "Dashed line = current as-of cut-off.",
-                    ),
-                    ui.output_ui("inv_timeseries"),
-                    ui.card(
-                        ui.card_header("Evidence timeline — what became knowable, and when"),
-                        section_note(
-                            "Purpose",
-                            "Chronology of intelligence/official signals available under the as-of (not a clinical case history).",
-                        ),
-                        ui.output_ui("inv_timeline"),
-                    ),
-                    ui.layout_columns(
-                        ui.card(
-                            ui.card_header("Why this alert?"),
-                            section_note(
-                                "Purpose",
-                                "Plain-language rationale for the current alert state, grounded in model artefacts.",
+                {"class": "ahr-main"},
+                ui.navset_tab(
+                    ui.nav_panel("Intro", intro_panel(data)),
+                    ui.nav_panel(
+                        "Global Radar",
+                        ui.div(
+                            {"class": "ahr-tab-body"},
+                            tab_explainer(
+                                question="Where should an epidemiologist look first this week?",
+                                what="A triage map and ranked country table built from MODEL ESTIMATES "
+                                "(investigation priority, early-warning probability, latent activity, reporting gap).",
+                                how="1) Set as-of and disease in the left panel. "
+                                "2) Keep Investigation priority as the default map layer. "
+                                "3) Note a top country in the priority queue, then open Investigate and select it there.",
+                                remember="Colours are not confirmed outbreak counts. Darker = higher estimated need to look — not proof of infection.",
                             ),
-                            ui.output_ui("inv_why"),
-                        ),
-                        ui.card(
-                            ui.card_header("Counterfactuals — what if we remove a signal family?"),
-                            section_note(
-                                "Purpose",
-                                "If probability collapses after removing intelligence or environment, that family was material to the alert.",
+                            ui.layout_sidebar(
+                                ui.sidebar(
+                                    ui.div(
+                                        {"class": "ahr-sidebar-block"},
+                                        ui.p({"class": "ahr-sidebar-label"}, "Scope"),
+                                        ui.input_select(
+                                            "as_of_radar",
+                                            "As-of date (knowledge cut-off)",
+                                            as_of_choices,
+                                            selected=default_as_of,
+                                        ),
+                                        ui.input_select(
+                                            "disease_radar",
+                                            "Disease",
+                                            disease_all,
+                                            selected=default_disease,
+                                        ),
+                                    ),
+                                    ui.hr(),
+                                    ui.div(
+                                        {"class": "ahr-sidebar-block"},
+                                        ui.p({"class": "ahr-sidebar-label"}, "Map"),
+                                        ui.input_select(
+                                            "map_layer",
+                                            "Colour the map by",
+                                            {
+                                                "investigation_priority": "Investigation priority (start here)",
+                                                "early_warning_probability": "Early warning probability",
+                                                "latent_mean": "Estimated latent activity",
+                                                "reporting_gap": "Estimated reporting gap",
+                                                "forecast_14d": "Forecast · 14 days",
+                                                "forecast_28d": "Forecast · 28 days",
+                                                "environmental_signal": "Environmental context signal",
+                                                "intelligence_signal": "Intelligence context signal",
+                                            },
+                                        ),
+                                    ),
+                                    ui.p("Layer guide", class_="fw-semibold small mb-1 mt-2"),
+                                    LAYER_HELP,
+                                    ui.hr(),
+                                    ui.p(
+                                        "Country is chosen on Investigate / Forecast. "
+                                        "After you spot a priority country here, switch tabs and select it there.",
+                                        class_="text-muted small mb-0",
+                                    ),
+                                    width=320,
+                                ),
+                                ui.div(ui.output_text("banner"), class_="alert alert-warning py-2"),
+                                section_note(
+                                    "Summary strip",
+                                    "How many places look elevated right now under the current as-of and disease filter.",
+                                ),
+                                ui.output_ui("radar_kpis"),
+                                section_note(
+                                    "Map",
+                                    "Choropleth of the selected layer. Hover a country for latent vs observed, gap, and alert level.",
+                                ),
+                                ui.output_ui("radar_map"),
+                                ui.card(
+                                    ui.card_header("Priority queue — countries sorted for investigation"),
+                                    section_note(
+                                        "How to read the table",
+                                        "Top rows = highest investigation priority. Open Investigate and select that country there.",
+                                    ),
+                                    ui.output_data_frame("radar_table"),
+                                ),
                             ),
-                            ui.output_ui("inv_counterfactuals"),
                         ),
-                        col_widths=(6, 6),
                     ),
-                    ui.card(
-                        ui.card_header("Evidence contributions — which features pushed the score?"),
-                        ui.output_data_frame("inv_evidence"),
+                    ui.nav_panel(
+                        "Investigate",
+                        ui.div(
+                            {"class": "ahr-tab-body"},
+                            tab_explainer(
+                                question="For this country × disease, what is officially visible versus what we estimate is happening — and why?",
+                                what="A case file: KPIs, latent-vs-observed time series, evidence timeline, “why this alert”, "
+                                "counterfactual ablations, feature contributions, and provenance.",
+                                how="1) Set Country, Disease, and As-of in This case. "
+                                "2) Compare Observed vs Estimated latent and the Reporting gap. "
+                                "3) Read Why this alert + Counterfactuals before acting on a score.",
+                                remember="This is epidemic intelligence support, not a confirmation of outbreak. Official verification still decides response.",
+                            ),
+                            ui.layout_sidebar(
+                                ui.sidebar(
+                                    ui.p({"class": "ahr-sidebar-label"}, "This case"),
+                                    ui.input_select(
+                                        "country_inv",
+                                        "Country",
+                                        country_choices,
+                                        selected=default_country,
+                                    ),
+                                    ui.input_select(
+                                        "disease_inv",
+                                        "Disease",
+                                        disease_case,
+                                        selected=default_disease,
+                                    ),
+                                    ui.input_select(
+                                        "as_of_inv",
+                                        "As-of date (knowledge cut-off)",
+                                        as_of_choices,
+                                        selected=default_as_of,
+                                    ),
+                                    ui.hr(),
+                                    ui.p(ui.tags.strong("Reading order"), class_="small mb-1"),
+                                    ui.tags.ol(
+                                        {"class": "small mb-0"},
+                                        ui.tags.li("KPIs (gap & early-warning)"),
+                                        ui.tags.li("Latent vs observed chart"),
+                                        ui.tags.li("Why this alert"),
+                                        ui.tags.li("Counterfactuals & contributions"),
+                                        ui.tags.li("Provenance"),
+                                    ),
+                                    width=300,
+                                ),
+                                ui.output_ui("inv_header"),
+                                section_note(
+                                    "Case snapshot",
+                                    "Observed = official visible burden. Latent = estimated underlying activity. Gap = how much may still be unseen.",
+                                ),
+                                ui.output_ui("inv_kpis"),
+                                section_note(
+                                    "Nowcast view",
+                                    "Solid red = estimated latent mean; band = uncertainty; blue = official observed. "
+                                    "Dashed line = current as-of cut-off.",
+                                ),
+                                ui.output_ui("inv_timeseries"),
+                                ui.card(
+                                    ui.card_header("Evidence timeline — what became knowable, and when"),
+                                    section_note(
+                                        "Purpose",
+                                        "Chronology of intelligence/official signals available under the as-of (not a clinical case history).",
+                                    ),
+                                    ui.output_ui("inv_timeline"),
+                                ),
+                                ui.layout_columns(
+                                    ui.card(
+                                        ui.card_header("Why this alert?"),
+                                        section_note(
+                                            "Purpose",
+                                            "Plain-language rationale for the current alert state, grounded in model artefacts.",
+                                        ),
+                                        ui.output_ui("inv_why"),
+                                    ),
+                                    ui.card(
+                                        ui.card_header("Counterfactuals — what if we remove a signal family?"),
+                                        section_note(
+                                            "Purpose",
+                                            "If probability collapses after removing intelligence or environment, that family was material to the alert.",
+                                        ),
+                                        ui.output_ui("inv_counterfactuals"),
+                                    ),
+                                    col_widths=(6, 6),
+                                ),
+                                ui.card(
+                                    ui.card_header("Evidence contributions — which features pushed the score?"),
+                                    ui.output_data_frame("inv_evidence"),
+                                ),
+                                ui.card(
+                                    ui.card_header("Source provenance — who said what, and when was it knowable?"),
+                                    ui.output_data_frame("inv_provenance"),
+                                ),
+                            ),
+                        ),
                     ),
-                    ui.card(
-                        ui.card_header("Source provenance — who said what, and when was it knowable?"),
-                        ui.output_data_frame("inv_provenance"),
+                    ui.nav_panel(
+                        "Forecast & Replay",
+                        ui.div(
+                            {"class": "ahr-tab-body"},
+                            tab_explainer(
+                                question="What is likely next — and how early would we have seen concern if we froze knowledge on a past date?",
+                                what="Two tools in one tab: (A) short-term probabilistic forecast fans (7/14/28 days), "
+                                "and (B) historical replay of what the model knew at the selected as-of, with lead-time against later official outcomes.",
+                                how="1) Set Country / Disease / As-of in the left panel. "
+                                "2) Choose the forecast horizon. "
+                                "3) Read the forecast summary + fan chart, then Replay for lead time.",
+                                remember="Forecasts are distributions with uncertainty, not single certainties. Replay outcomes after as-of are labels for evaluation.",
+                            ),
+                            ui.layout_sidebar(
+                                ui.sidebar(
+                                    ui.div(
+                                        {"class": "ahr-sidebar-block"},
+                                        ui.p({"class": "ahr-sidebar-label"}, "Case"),
+                                        ui.input_select(
+                                            "country_fc",
+                                            "Country",
+                                            country_choices,
+                                            selected=default_country,
+                                        ),
+                                        ui.input_select(
+                                            "disease_fc",
+                                            "Disease",
+                                            disease_case,
+                                            selected=default_disease,
+                                        ),
+                                        ui.input_select(
+                                            "as_of_fc",
+                                            "As-of date (knowledge cut-off)",
+                                            as_of_choices,
+                                            selected=default_as_of,
+                                        ),
+                                    ),
+                                    ui.hr(),
+                                    ui.div(
+                                        {"class": "ahr-sidebar-block"},
+                                        ui.p({"class": "ahr-sidebar-label"}, "Horizon"),
+                                        ui.input_radio_buttons(
+                                            "fc_horizon",
+                                            "Primary horizon for the summary cards",
+                                            {"7": "7 days", "14": "14 days", "28": "28 days"},
+                                            selected="14",
+                                        ),
+                                    ),
+                                    ui.p(
+                                        "Replay uses the as-of above as Day 0; later rows are evaluation outcomes only.",
+                                        class_="small text-muted mb-0",
+                                    ),
+                                    width=300,
+                                ),
+                                section_note(
+                                    "A · Short-term forecast",
+                                    "Median and interval for the selected horizon, plus chance of increase / new official visibility.",
+                                ),
+                                ui.output_ui("fc_summary"),
+                                section_note(
+                                    "Fan chart",
+                                    "Coloured lines = 7/14/28-day forecasts over successive as-of weeks. "
+                                    "Dotted white = official observed. Green dashed = current as-of.",
+                                ),
+                                ui.output_ui("fc_fan"),
+                                ui.card(
+                                    ui.card_header("B · Historical replay — what was knowable then?"),
+                                    section_note(
+                                        "Purpose",
+                                        "Demonstrate lead time: would the model have raised concern before official burden rose? "
+                                        "This is the Challenge 1 early-warning proof.",
+                                    ),
+                                    ui.output_ui("fc_replay_summary"),
+                                    ui.output_data_frame("fc_replay_table"),
+                                ),
+                            ),
+                        ),
                     ),
+                    ui.nav_panel("Data sources", data_sources_panel(data)),
+                    ui.nav_panel("Methodology", methodology_panel(data)),
+                    id="main_nav",
                 ),
             ),
-        ),
-        ui.nav_panel(
-            "Forecast & Replay",
-            ui.div(
-                {"class": "ahr-tab-body px-3 pt-2"},
-                tab_explainer(
-                    question="What is likely next — and how early would we have seen concern if we froze knowledge on a past date?",
-                    what="Two tools in one tab: (A) short-term probabilistic forecast fans (7/14/28 days), "
-                    "and (B) historical replay of what the model knew at the selected as-of, with lead-time against later official outcomes.",
-                    how="1) Set Country / Disease / As-of above. "
-                    "2) Choose the horizon here. "
-                    "3) Read the forecast summary + fan chart, then Replay for lead time.",
-                    remember="Forecasts are distributions with uncertainty, not single certainties. Replay outcomes after as-of are labels for evaluation.",
-                ),
-                ui.layout_sidebar(
-                    ui.sidebar(
-                        ui.h5("Horizon only"),
-                        ui.input_radio_buttons(
-                            "fc_horizon",
-                            "Primary horizon for the summary cards",
-                            {"7": "7 days", "14": "14 days", "28": "28 days"},
-                            selected="14",
-                        ),
-                        ui.p(
-                            "Country, disease, and as-of come from the filter bar above. "
-                            "Replay uses that as-of as Day 0; later rows are evaluation outcomes only.",
-                            class_="small text-muted mb-0",
-                        ),
-                        width=280,
-                    ),
-                    section_note(
-                        "A · Short-term forecast",
-                        "Median and interval for the selected horizon, plus chance of increase / new official visibility.",
-                    ),
-                    ui.output_ui("fc_summary"),
-                    section_note(
-                        "Fan chart",
-                        "Coloured lines = 7/14/28-day forecasts over successive as-of weeks. "
-                        "Dotted white = official observed. Green dashed = current as-of.",
-                    ),
-                    ui.output_ui("fc_fan"),
-                    ui.card(
-                        ui.card_header("B · Historical replay — what was knowable then?"),
-                        section_note(
-                            "Purpose",
-                            "Demonstrate lead time: would the model have raised concern before official burden rose? "
-                            "This is the Challenge 1 early-warning proof.",
-                        ),
-                        ui.output_ui("fc_replay_summary"),
-                        ui.output_data_frame("fc_replay_table"),
-                    ),
-                ),
-            ),
-        ),
-        ui.nav_panel("Data sources", data_sources_panel(data)),
-        ui.nav_panel("Methodology", methodology_panel(data)),
-        title="Animal Health Radar",
-        id="main_nav",
-        fillable=True,
-        header=ui.TagList(_ahr_css(), global_filters),
-        footer=ui.div(
-            f"Animal Health Radar · WOAH Datathon 2026 Challenge 1 · data_mode={data.data_mode} · "
-            "MODEL ESTIMATES only — not confirmed outbreaks",
-            class_="text-center text-muted small py-2",
         ),
     )

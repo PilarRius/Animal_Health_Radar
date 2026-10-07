@@ -5,6 +5,8 @@ from __future__ import annotations
 import plotly.express as px
 from shiny import render, ui
 
+from dashboard.filter_state import selected_as_of
+
 LAYER_TITLES = {
     "investigation_priority": "Investigation priority — where to look first",
     "early_warning_probability": "Early-warning probability — chance of rising official visibility (~28d)",
@@ -91,7 +93,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             },
             color_continuous_scale="YlOrRd",
             projection="natural earth",
-            title=f"{title} · as-of {input.as_of()} · MODEL ESTIMATE",
+            title=f"{title} · as-of {selected_as_of(input)} · MODEL ESTIMATE",
         )
         fig.update_layout(
             margin=dict(l=0, r=0, t=48, b=0),
