@@ -187,11 +187,19 @@ def _ahr_css() -> ui.Tag:
         .ahr-hero {
           background: linear-gradient(135deg, var(--woah-blue-deep) 0%, var(--woah-blue) 55%, #1A6BA8 100%);
           border: none;
-          color: #fff;
+          color: #fff !important;
           border-radius: 14px;
         }
-        .ahr-hero h2 { color: #fff; letter-spacing: 0.02em; }
-        .ahr-hero h4 { color: #ffffff !important; opacity: 1; }
+        .ahr-prose .ahr-hero h2,
+        .ahr-prose .ahr-hero h4,
+        .ahr-prose .ahr-hero p,
+        .ahr-hero h2,
+        .ahr-hero h4,
+        .ahr-hero p {
+          color: #ffffff !important;
+          opacity: 1;
+        }
+        .ahr-hero h2 { letter-spacing: 0.02em; }
         .ahr-flow {
           background: rgba(0, 0, 0, 0.22);
           border: 1px dashed rgba(255, 255, 255, 0.35);
@@ -276,6 +284,121 @@ def _ahr_css() -> ui.Tag:
           color: var(--woah-blue-deep);
           font-weight: 600;
         }
+
+        /* Compact Radar KPI strip */
+        .ahr-kpi-row {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.65rem;
+          margin-bottom: 0.75rem;
+        }
+        @media (max-width: 900px) {
+          .ahr-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        .ahr-kpi {
+          background: #fff;
+          border: 1px solid var(--woah-line);
+          border-radius: 10px;
+          padding: 0.55rem 0.75rem 0.6rem;
+          min-height: 0;
+        }
+        .ahr-kpi-value {
+          font-size: 1.35rem;
+          font-weight: 700;
+          line-height: 1.15;
+          color: var(--woah-blue-deep);
+        }
+        .ahr-kpi-label {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: var(--woah-ink);
+          margin-top: 0.15rem;
+        }
+        .ahr-kpi-hint {
+          font-size: 0.7rem;
+          color: var(--woah-muted);
+          margin-top: 0.1rem;
+        }
+        button.ahr-kpi-btn {
+          display: block;
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+          background: #fff;
+          border: 1px solid var(--woah-line);
+          border-radius: 10px;
+          padding: 0.55rem 0.75rem 0.6rem;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        button.ahr-kpi-btn:hover,
+        button.ahr-kpi-btn:focus {
+          border-color: var(--woah-coral);
+          box-shadow: 0 0 0 2px rgba(228, 87, 46, 0.18);
+          outline: none;
+        }
+        button.ahr-kpi-btn .ahr-kpi-hint {
+          color: var(--woah-blue);
+          font-weight: 600;
+        }
+        .ahr-attention-detail {
+          background: #fff;
+          border: 1px solid var(--woah-line);
+          border-left: 3px solid var(--woah-coral);
+          border-radius: 10px;
+          padding: 0.65rem 0.9rem;
+          margin: 0 0 0.85rem;
+        }
+        .ahr-attention-detail h6 {
+          margin: 0 0 0.4rem;
+          color: var(--woah-blue-deep);
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+        .ahr-attention-detail ul {
+          margin: 0;
+          padding-left: 1.1rem;
+        }
+        .ahr-attention-detail li {
+          margin-bottom: 0.25rem;
+          font-size: 0.88rem;
+        }
+
+        .ahr-story { margin-bottom: 0.75rem; }
+        .ahr-story-step {
+          border: 1px solid var(--woah-line);
+          border-radius: 10px;
+          padding: 0.65rem 0.85rem;
+          margin-bottom: 0.45rem;
+          background: #fff;
+          border-left: 4px solid var(--woah-blue);
+        }
+        .ahr-story-step-title {
+          font-size: 0.78rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--woah-blue-deep);
+          margin-bottom: 0.2rem;
+        }
+        .ahr-story-step p { font-size: 0.9rem; color: var(--woah-ink); }
+        .ahr-story-info { border-left-color: var(--woah-blue-mid); background: #f3f8fc; }
+        .ahr-story-warn { border-left-color: var(--woah-coral); background: var(--woah-coral-soft); }
+        .ahr-story-ok { border-left-color: var(--woah-sage); background: #eef7f4; }
+        .ahr-story-neutral { border-left-color: #94a3b8; }
+
+        .ahr-eq {
+          background: #0f2740;
+          color: #e8f2fa;
+          border: 1px solid #1a4a6e;
+          border-radius: 8px;
+          padding: 0.75rem 1rem;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 0.82rem;
+          line-height: 1.45;
+          white-space: pre-wrap;
+          overflow-x: auto;
+          margin: 0.5rem 0 0.85rem;
+        }
         """
     )
 
@@ -283,11 +406,17 @@ def _ahr_css() -> ui.Tag:
 def app_ui(data: AppData):
     disease_all = {"ALL": "All diseases (Radar overview)", **{k: v.name for k, v in data.diseases.items()}}
     disease_case = {k: v.name for k, v in data.diseases.items()}
-    as_of_choices = {d: d for d in data.as_of_dates}
-    default_as_of = data.as_of_dates[-1] if data.as_of_dates else None
+    # Latest first so the select defaults visibly to the most recent cut-off.
+    as_of_dates_desc = list(reversed(data.as_of_dates)) if data.as_of_dates else []
+    as_of_choices = {d: d for d in as_of_dates_desc}
+    default_as_of = as_of_dates_desc[0] if as_of_dates_desc else None
     country_choices = {iso: spec.name for iso, spec in data.countries.items()}
-    default_country = "POL" if "POL" in country_choices else next(iter(country_choices), None)
-    default_disease = "HPAI" if "HPAI" in disease_case else next(iter(disease_case), None)
+    # UKR|ASF has the richest scored panel for demos (alerts + INFUR + intel + SMR).
+    default_country = (
+        "UKR" if "UKR" in country_choices
+        else ("ROU" if "ROU" in country_choices else next(iter(country_choices), None))
+    )
+    default_disease = "ASF" if "ASF" in disease_case else next(iter(disease_case), None)
 
     return ui.page_fluid(
         _ahr_css(),
@@ -380,9 +509,11 @@ def app_ui(data: AppData):
                                 ui.div(ui.output_text("banner"), class_="alert alert-warning py-2"),
                                 section_note(
                                     "Summary strip",
-                                    "How many places look elevated right now under the current as-of and disease filter.",
+                                    "How many places look elevated right now under the current as-of and disease filter. "
+                                    "Click “Need analyst attention” to list the countries.",
                                 ),
                                 ui.output_ui("radar_kpis"),
+                                ui.output_ui("radar_attention_detail"),
                                 section_note(
                                     "Map",
                                     "Choropleth of the selected layer. Hover a country for latent vs observed, gap, and alert level.",
@@ -490,6 +621,16 @@ def app_ui(data: AppData):
                                 ),
                                 ui.card(
                                     ui.card_header("Source provenance — who said what, and when was it knowable?"),
+                                    section_note(
+                                        "Media headlines",
+                                        "Article / report titles knowable at this as-of (PADI-web, BEACON, EIOS when available). "
+                                        "Full article bodies are not stored — open the URL for the original text.",
+                                    ),
+                                    ui.output_ui("inv_media_headlines"),
+                                    section_note(
+                                        "Provenance ledger",
+                                        "Source metadata linked to this country × disease under the as-of cut-off.",
+                                    ),
                                     ui.output_data_frame("inv_provenance"),
                                 ),
                             ),
@@ -561,13 +702,18 @@ def app_ui(data: AppData):
                                 ),
                                 ui.output_ui("fc_fan"),
                                 ui.card(
-                                    ui.card_header("B · Historical replay — what was knowable then?"),
+                                    ui.card_header("B · Historical replay — early-warning storyline"),
                                     section_note(
                                         "Purpose",
-                                        "Demonstrate lead time: would the model have raised concern before official burden rose? "
-                                        "This is the Challenge 1 early-warning proof.",
+                                        "Follow the story: intelligence → model WATCH/ALERT → last/next INFUR report → "
+                                        "INFUR lead time → SMR semester check when INFUR is silent (endemic/stable or "
+                                        "SMR-only reporting paths).",
                                     ),
                                     ui.output_ui("fc_replay_summary"),
+                                    section_note(
+                                        "Week-by-week table",
+                                        "Rows ≤ as-of were knowable then; rows after as-of are evaluation outcomes only.",
+                                    ),
                                     ui.output_data_frame("fc_replay_table"),
                                 ),
                             ),

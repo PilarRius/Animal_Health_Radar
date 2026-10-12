@@ -87,7 +87,7 @@ def intro_panel(data: AppData) -> ui.Tag:
                     "Animal disease events exist in the world before they appear in official systems "
                     "such as WOAH WAHIS. Reporting takes days to weeks. Media and intelligence often "
                     "arrive earlier — but they are noisy and duplicated. Looking only at the latest "
-                    "official map systematically understates risk at the leading edge of an epidemic."
+                    "official map systematically understates risk at the leading edge of an outbreak."
                 ),
             ),
             ui.card(
@@ -199,7 +199,9 @@ def intro_panel(data: AppData) -> ui.Tag:
             ui.tags.strong(f"Data mode: {mode}. "),
             (
                 "Official observation is real WAHIS INFUR (offline extract; no API). "
-                "SMR semester status is kept separate from outbreak counts. "
+                "SMR semester status is kept separate from outbreak counts, but Forecast & Replay "
+                "can use a later SMR as secondary validation when INFUR goes quiet "
+                "(stable/endemic or SMR-only reporting paths). "
                 "Media/environment enrichment may still use labelled sample files — "
                 "see Data sources. Never treat map colours as confirmed outbreaks."
                 if data.data_mode in {"pilot", "offline"}
@@ -239,8 +241,10 @@ def data_sources_panel(data: AppData) -> ui.Tag:
                 "Reference official notifications. Used as the observation process and for retrospective "
                 "evaluation — ",
                 ui.tags.em("not"),
-                " as absolute truth about latent disease. Real extracts: INFUR (event-driven) and optional SMR "
-                "(semester status). INFUR and SMR use different ID spaces and must not be double-counted."
+                " as absolute truth about latent disease. Real extracts: INFUR (event-driven) and SMR "
+                "(semester status). INFUR and SMR use different ID spaces and must not be double-counted. "
+                "Stable/endemic framing often means Members leave INFUR and report only on SMR; "
+                "non-notifiable diseases may never appear on INFUR."
             ),
             ui.tags.li(
                 ui.tags.strong("EMPRES-i — "),
@@ -300,77 +304,158 @@ def data_sources_panel(data: AppData) -> ui.Tag:
     )
 
 
+def _eq(*parts: str) -> ui.Tag:
+    """Monospace equation block for the Methodology tab."""
+    return ui.pre({"class": "ahr-eq"}, "\n".join(parts))
+
+
 def methodology_panel(data: AppData) -> ui.Tag:
     return ui.div(
         {"class": "ahr-prose px-4 py-3"},
         ui.h2("Methodology"),
         tab_explainer(
             question="How do we estimate what is happening now, what is under-observed, and what is next?",
-            what="Four model families: reporting delay, latent nowcast, early warning, and short-term forecast — kept separate on purpose.",
-            how="Use this tab when you need the scientific defence. Use Investigate for the case-level “why”.",
-            remember="As-of discipline is non-negotiable: no future publications may leak into historical scores.",
+            what="Four model families with explicit likelihoods / targets / parameters: reporting delay, "
+            "latent nowcast, early warning, and short-term forecast — kept separate on purpose.",
+            how="Read each section below for the maths and pilot config. Use Investigate for case-level “why”.",
+            remember="As-of discipline is non-negotiable: available_from ≤ T. Full write-up: docs/METHODOLOGY.md.",
         ),
         ui.p(
-            "Four questions → four model families, deliberately separate. Prefer transparent statistical "
-            "models over black-box sequence learners for a datathon defence."
+            "Generative story (disease → detection → delay → official visibility):"
         ),
-        ui.layout_columns(
-            ui.card(
-                ui.card_header("1. Reporting delay"),
-                ui.p(
-                    "Estimate how long events take to become officially visible (onset → publication), "
-                    "with ",
-                    ui.tags.strong("right-truncated likelihood"),
-                    " so recent incomplete weeks do not pretend delays are short. Partial pooling by disease × surveillance capacity."
-                ),
-            ),
-            ui.card(
-                ui.card_header("2. Latent nowcast"),
-                ui.p(
-                    "Given what is visible today, estimate current latent burden and the ",
-                    ui.tags.strong("reporting gap"),
-                    ". Ascertainment (ever detected?) is an ",
-                    ui.tags.strong("explicit prior"),
-                    " — never silently claimed as estimated from WAHIS alone."
-                ),
-            ),
-            ui.card(
-                ui.card_header("3. Early warning"),
-                ui.p(
-                    "Calibrated probability that ",
-                    ui.tags.strong("official visibility"),
-                    " appears or escalates within ~28 days given information at as-of T. "
-                    "Baselines (seasonal, EWMA, CUSUM, official-only) must be beaten before we claim value."
-                ),
-            ),
-            ui.card(
-                ui.card_header("4. Short-term forecast"),
-                ui.p(
-                    "7 / 14 / 28-day predictive distributions via a CRPS-weighted ensemble "
-                    "(NegBin GLM + damped trend + seasonal climatology). Intervals and exceedance probabilities — not single points."
-                ),
-            ),
-            col_widths=(6, 6, 6, 6),
+        _eq(
+            "N_true  --(ascertainment a)-->  N_eventually_reportable",
+            "       --(delay D)---------->  O_visible_at_T",
         ),
-        ui.h4("As-of discipline (no leakage)", class_="mt-3"),
         ui.p(
-            "For any prediction stamped with date T, only records with ",
+            "Pilot panel frequency W-MON; data cut-off 2026-06-29; MC draws = 800. "
+            f"Current app data_mode = {data.data_mode}."
+        ),
+        # ----- 1 delay -----
+        ui.h4("1 · Reporting delay", class_="mt-4"),
+        ui.p(
+            "Object: delay D (days) from reference/onset date t to official knowability. "
+            "At analysis date T an event is observed only if D ≤ T − t (right truncation). "
+            "Naive fits without truncation make delays look too short."
+        ),
+        ui.p(ui.tags.strong("Truncated likelihood:")),
+        _eq("L(θ) = ∏_i  f(d_i | θ) / F(T − t_i | θ)"),
+        ui.p(
+            "Families per group (disease × surveillance tier): discretised log-normal (μ, σ) "
+            "or NegBin (mean μ, dispersion α); AIC selects. Partial pooling shrinks thin strata "
+            "toward disease then global fits with weight n/(n+κ), κ = 40."
+        ),
+        ui.p(
+            "Operational: max_delay_days = 90; delay_refit_interval_weeks = 8; "
+            "reporting probability p_w(T) = F(T − t_w | θ̂), floored at min_reporting_probability = 0.25."
+        ),
+        # ----- 2 nowcast -----
+        ui.h4("2 · Latent nowcast", class_="mt-4"),
+        ui.p(
+            "Given visible count O_w for reference week w and delay-implied p_w, estimate the "
+            "not-yet-reported remainder U_w (NegBin posterior predictive) then inflate by "
+            "an ",
+            ui.tags.strong("explicit ascertainment prior"),
+            " a (never claimed as estimated from WAHIS alone)."
+        ),
+        _eq(
+            "E[U_w] = (a0 + O_w) · (1 − p_w) / (b0 + p_w)",
+            "N̂_w = O_w + U_w",
+            "latent_w = N̂_w / a ,   a ~ Beta(α_tier, β_tier) · m_disease",
+            "gap_w = hidden_w / latent_w",
+        ),
+        ui.p(
+            "Ascertainment Beta means (pilot): high ≈ 0.88 (α=22, β=3); medium ≈ 0.76 (16, 5); "
+            "low ≈ 0.56 (10, 8). Disease multipliers: HPAI m=1.00, ASF m=0.92. "
+            "Gap bands: minor ≥ 0.25, moderate ≥ 0.50, severe ≥ 0.72."
+        ),
+        ui.p(
+            "Week-wise estimates are smoothed with a local-level (random-walk) state-space model "
+            "on the log scale over nowcast_window_weeks = 12 (Rauch–Tung–Striebel). "
+            "Uncertainty still comes from Monte-Carlo draws of U_w, p_w, and a."
+        ),
+        # ----- 3 EW -----
+        ui.h4("3 · Early warning", class_="mt-4"),
+        ui.p(
+            "Target is ",
+            ui.tags.strong("official visibility / escalation"),
+            ", not “latent outbreak confirmed”. Horizon H = 28 days; run-rate window = 8 weeks; "
+            "escalation factor φ = 1.5:"
+        ),
+        _eq(
+            "Y_T = 1{  publications in (T, T+H]",
+            "        ≥ max( 1 ,  φ · r̂_T · H/7 )  }",
+        ),
+        ui.p(
+            "Quiet entities → emergence (threshold 1). Already reporting → escalation beyond run-rate. "
+            "Primary model: gradient boosting on the point-in-time design matrix; "
+            "calibration = isotonic on a later window."
+        ),
+        ui.p(
+            ui.tags.strong("Temporal splits (pilot): "),
+            "train as_of ≤ 2025-06-30; calibration ≤ 2025-12-29; test after. No shuffling."
+        ),
+        ui.p(
+            ui.tags.strong("Alert bands on calibrated π̂: "),
+            "NONE 0.00 · INFO 0.08 · WATCH 0.20 · ALERT 0.40 · CRITICAL 0.65. "
+            "Hysteresis de-escalate margin 0.05. Explanations: SHAP or occlusion "
+            "Δ_j = f(x) − f(x with feature j → training median); family counterfactuals likewise."
+        ),
+        # ----- 4 forecast -----
+        ui.h4("4 · Short-term forecast (7 / 14 / 28 days)", class_="mt-4"),
+        ui.p(
+            "Target = reported_final: outbreaks with reference week in the horizon that are ",
+            ui.tags.strong("eventually"),
+            " reported (scorable). Latent scale = reported_final / ascertainment mean, labelled separately."
+        ),
+        ui.p("CRPS-weighted mixture of three members:"),
+        ui.tags.ul(
+            ui.tags.li(ui.tags.strong("NegBin GLM — "), "covariates + Fourier seasonality (reactive to new signals)."),
+            ui.tags.li(ui.tags.strong("Damped Holt trend — "), "on log(1+y) of vintage-visible series."),
+            ui.tags.li(ui.tags.strong("Seasonal climatology — "), "week-of-year mean from prior years."),
+        ),
+        _eq(
+            "w_m ∝ exp( − CRPS_m / (τ · mean_CRPS) ) ,  τ = 0.5 ,  w_m ≥ 0.05",
+            "Predictive law = mixture of MC draws (not averaged quantiles)",
+        ),
+        ui.p(
+            "Quantiles {0.05…0.95}; central interval level 0.90. Exceedance: P(count≥1), "
+            "threshold multiples, P(increase) with relative margin 0.10 vs current nowcast."
+        ),
+        # ----- 5 priority -----
+        ui.h4("5 · Investigation priority (Radar)", class_="mt-4"),
+        ui.p("Policy weights (sum to 1 — not estimated):"),
+        _eq(
+            "IP = 0.34·π̂ + 0.22·gap + 0.20·(1 − e^{−latent/5})",
+            "   + 0.14·clip(forecast_growth,0,1) + 0.10·σ(intel)",
+        ),
+        ui.p("Bands: moderate ≥ 0.30, high ≥ 0.52, very high ≥ 0.72."),
+        # ----- 6 independence -----
+        ui.h4("6 · Evidence independence", class_="mt-4"),
+        _eq("n_eff = (Σ w_i)² / (wᵀ R w)"),
+        ui.p(
+            "R from configured clusters (official / media / aggregator / environmental / exposure). "
+            "Gates: min n_eff for ALERT = 1.35; for CRITICAL = 2.10."
+        ),
+        # ----- 7 replay -----
+        ui.h4("7 · Historical replay & SMR check", class_="mt-4"),
+        ui.p(
+            "At as-of T: rebuild scores with available_from ≤ T; mark first WATCH/ALERT; "
+            "compare to INFUR final-vintage weeks before/after T for lead time. "
+            "If INFUR is silent after T, check SMR semester covariates "
+            "(smr_disease_present / new / total outbreaks) knowable after T — ",
+            ui.tags.strong("semester validation only"),
+            ", never treated as INFUR outbreak events. Stable/endemic and non-notifiable "
+            "paths often leave INFUR (see Data sources / WAHIS_INFUR_SMR_DROP.md)."
+        ),
+        ui.h4("As-of discipline (no leakage)", class_="mt-4"),
+        ui.p(
+            "Only ",
             ui.tags.code("available_from ≤ T"),
-            " may enter features or parameters. Automated tests under ",
+            " may enter features or parameters. Feature family lags (days): intelligence 1, "
+            "environmental 6, contextual/FAOSTAT 365. Tests under ",
             ui.tags.code("tests/leakage/"),
-            " fail loudly if future publications contaminate historical scores."
-        ),
-        ui.h4("Explainability & counterfactuals"),
-        ui.p(
-            "Investigate shows feature contributions (SHAP or occlusion) and ",
-            ui.tags.strong("family ablations"),
-            ": re-score the fitted model after removing intelligence, environment, livestock, etc. "
-            "Those deltas are computed — not invented for the slide deck."
-        ),
-        ui.h4("Historical replay"),
-        ui.p(
-            "Pick a past as-of date. The system reconstructs what was knowable then, shows the alert path, "
-            "and compares to official outcomes that arrived later — the flagship demonstration of lead time."
+            "."
         ),
         ui.h4("Language we use carefully"),
         ui.tags.ul(
@@ -380,12 +465,14 @@ def methodology_panel(data: AppData) -> ui.Tag:
         ),
         ui.p(
             "We avoid “hidden outbreak confirmed”, “country is hiding outbreaks”, or “AI detected an outbreak” "
-            "unless an official confirmation exists.",
+            "unless an official confirmation exists. Alert thresholds are operational placeholders, "
+            "not claimed epidemiologically optimal.",
             class_="text-muted",
         ),
         ui.p(
             ui.tags.small(
-                "See also docs/METHODOLOGY.md, docs/TARGET_DEFINITION.md, docs/DECISIONS.md, docs/MODEL_CARD.md"
+                "Full equations & tables: docs/METHODOLOGY.md · also TARGET_DEFINITION.md, "
+                "DECISIONS.md, MODEL_CARD.md, INITIAL_MODEL_DESIGN.md"
             )
         ),
     )

@@ -64,3 +64,12 @@ Format per prompt §78.
 **Alternatives:** Treat as independent Level 2.  
 **Scientific consequence:** Independence discounting within cluster.  
 **Implementation:** `is_downstream_of_official` + independence config.
+
+---
+
+## Decision: SMR as secondary validation, never as INFUR outbreaks
+
+**Reason:** Stable/endemic framing and non-notifiable (or notifiable-but-endemic) diseases often leave INFUR silent; Members may only update on Six-Month Reports. Ignoring SMR makes quiet-INFUR cases look like false alarms.  
+**Alternatives:** INFUR-only evaluation; merge SMR counts into weekly outbreak series.  
+**Scientific consequence:** Forecast & Replay can show semester-level supporting validation after model alerts without claiming day-level INFUR lead time or double-counting ID spaces.  
+**Implementation:** `smr_*` covariates + replay story step 6; documented in `docs/WAHIS_INFUR_SMR_DROP.md`.

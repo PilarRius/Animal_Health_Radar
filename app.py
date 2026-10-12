@@ -19,13 +19,21 @@ if str(ROOT) not in sys.path:
 from shiny import App, reactive, render
 
 from dashboard.data_loader import AppData
-from dashboard.filter_state import register_filter_sync, selected_as_of, selected_disease
+from dashboard.filter_state import (
+    configure_defaults,
+    register_filter_sync,
+    selected_as_of,
+    selected_disease,
+)
 from dashboard.layouts.shell import app_ui
 from dashboard.modules import forecast as forecast_mod
 from dashboard.modules import investigate as investigate_mod
 from dashboard.modules import radar as radar_mod
 
 DATA = AppData.load(ROOT)
+DEFAULT_AS_OF = DATA.as_of_dates[-1] if DATA.as_of_dates else None
+DEFAULT_DISEASE = "ASF" if "ASF" in DATA.diseases else (next(iter(DATA.diseases), None))
+configure_defaults(as_of=DEFAULT_AS_OF, disease=DEFAULT_DISEASE)
 
 
 def server(input, output, session):  # noqa: ANN001
@@ -33,7 +41,9 @@ def server(input, output, session):  # noqa: ANN001
 
     @reactive.calc
     def filtered_predictions():
-        return DATA.predictions_as_of(selected_as_of(input), selected_disease(input))
+        as_of = selected_as_of(input) or DEFAULT_AS_OF
+        disease = selected_disease(input) or DEFAULT_DISEASE or "ASF"
+        return DATA.predictions_as_of(as_of, disease)
 
     radar_mod.register(input, output, session, DATA, filtered_predictions)
     investigate_mod.register(input, output, session, DATA, filtered_predictions)

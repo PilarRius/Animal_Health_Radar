@@ -28,7 +28,13 @@ The operational output is a calibrated investigation priority with explicit unce
 | **INFUR** | `data/raw/infur_outbreaks_*.csv` | Outbreak-level Immediate Notification / Follow-Up Reports — primary observation process |
 | **SMR** | `data/raw/smr_diseases_*.csv` | Six-Month Report semester status — covariates only, **not** outbreak counts |
 
-INFUR and SMR use **different ID spaces**. Absence of INFUR reports does not imply absence of disease (e.g. endemic HPAI definitions in some regions); SMR status helps capture that reporting bias.
+INFUR and SMR use **different ID spaces**. Absence of INFUR reports does **not** imply absence of disease:
+
+- When a situation is treated as **stable / endemic**, countries often stop event-driven INFUR and continue only on **SMR**.
+- Some diseases are **not notifiable** via INFUR and appear (if at all) only on SMR.
+- Some diseases **are** notifiable but endemic practice still under-uses INFUR.
+
+SMR is therefore kept as **covariates + secondary validation** in Forecast & Replay (semester present / outbreak totals knowable after as-of), never mixed into the INFUR weekly outbreak series. Details: `docs/WAHIS_INFUR_SMR_DROP.md`.
 
 **No WAHIS API calls** are made. Reproducibility depends on these local extracts.
 

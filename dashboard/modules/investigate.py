@@ -230,14 +230,64 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         })
         return render.DataGrid(view, height="280px")
 
+    @render.ui
+    def inv_media_headlines():
+        country = selected_country(input)
+        disease = case_disease(input)
+        as_of = selected_as_of(input)
+        headlines = data.media_headlines_for_entity(country, disease, as_of, limit=15)
+        if headlines.empty:
+            return ui.p(
+                "No media/intelligence headlines found for this country × disease under the as-of. "
+                "That can mean sparse coverage, or that raw PADI/BEACON/EIOS panels are not on disk.",
+                class_="small text-muted",
+            )
+        items = []
+        for _, row in headlines.iterrows():
+            title = str(row["headline"])
+            meta = f"{row['published']} · {row['source']}"
+            outlet = str(row.get("outlet") or "").strip()
+            if outlet and outlet != row["source"]:
+                meta = f"{meta} · {outlet}"
+            url = str(row.get("url") or "").strip()
+            if url:
+                items.append(
+                    ui.tags.li(
+                        ui.tags.a(title, href=url, target="_blank", rel="noopener noreferrer"),
+                        ui.tags.span(f" — {meta}", class_="small text-muted"),
+                    )
+                )
+            else:
+                items.append(
+                    ui.tags.li(
+                        ui.tags.strong(title),
+                        ui.tags.span(f" — {meta}", class_="small text-muted"),
+                    )
+                )
+        return ui.tags.ul({"class": "mb-3"}, *items)
+
     @render.data_frame
     def inv_provenance():
+        import pandas as pd
+
         frame = data.provenance_for_entity(
             selected_country(input), case_disease(input), selected_as_of(input)
         )
-        if frame.empty:
-            import pandas as pd
+        if frame.empty or (len(frame.columns) == 1 and "note" in frame.columns):
             return render.DataGrid(pd.DataFrame({
                 "note": ["No provenance rows under this as-of for the selected case."]
             }))
-        return render.DataGrid(frame, height="280px")
+        view = frame.rename(columns={
+            "source_name": "Source",
+            "record_id": "Record",
+            "source_type": "Type",
+            "source_tier": "Tier",
+            "evidence_cluster": "Cluster",
+            "published_at": "Published",
+            "available_from": "Knowable from",
+            "url": "URL",
+            "notes": "Notes / excerpt",
+            "realism": "Realism",
+            "reliability": "Reliability",
+        })
+        return render.DataGrid(view, height="280px")
