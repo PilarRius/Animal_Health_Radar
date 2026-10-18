@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+import pandas as pd
 import plotly.graph_objects as go
 from shiny import reactive, render, ui
 
@@ -22,11 +23,49 @@ def _fmt_prob(value) -> str:
     return f"{x:.0%}"
 
 
+def _fmt_num(value, *, digits: int = 1) -> str:
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+    if math.isnan(x):
+        return "n/a"
+    return f"{x:.{digits}f}"
+
+
+def _as_timestamp(value) -> pd.Timestamp | None:
+    """Parse chart / vline positions; plotly add_vline breaks on mixed str/int axes."""
+    if value is None or value == "":
+        return None
+    ts = pd.Timestamp(value)
+    if pd.isna(ts):
+        return None
+    return ts
+
+
+def _add_vline(fig: go.Figure, x, *, text: str, color: str, dash: str, position: str) -> None:
+    ts = _as_timestamp(x)
+    if ts is None:
+        return
+    # annotation=None avoids plotly's shapeannotation._mean() path, which raises
+    # TypeError when the x-axis still has mixed types.
+    fig.add_vline(x=ts, line_dash=dash, line_color=color, annotation=None)
+    fig.add_annotation(
+        x=ts,
+        y=1.02,
+        yref="paper",
+        text=text,
+        showarrow=False,
+        font=dict(size=10, color=color),
+        xanchor="left" if "right" not in position else "right",
+    )
+
+
 def _story_block(title: str, body: str, *, tone: str = "neutral") -> ui.Tag:
     return ui.div(
         {"class": f"ahr-story-step ahr-story-{tone}"},
         ui.div({"class": "ahr-story-step-title"}, title),
-        ui.p(body, class_="mb-0"),
+        ui.p(str(body), class_="mb-0"),
     )
 
 
@@ -55,19 +94,20 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         r = current_row()
         if r is None:
             return ui.p("No forecast for this selection at the global as-of. Try another country, disease, or as-of.")
-        h = input.fc_horizon()
+        raw_h = str(input.fc_horizon() or "14").split()[0]
+        h = raw_h if raw_h in {"7", "14", "28"} else "14"
         point = r.get(f"forecast_{h}d")
         lo = r.get(f"forecast_{h}d_lower")
         hi = r.get(f"forecast_{h}d_upper")
         return ui.layout_columns(
             ui.value_box(
                 f"Forecast · {h} days (median)",
-                f"{point:.1f}" if point == point else "n/a",
+                _fmt_num(point),
                 showcase=ui.span("central short-term estimate", class_="small text-muted"),
             ),
             ui.value_box(
                 "Uncertainty interval",
-                f"{lo:.1f} – {hi:.1f}" if lo == lo else "n/a",
+                f"{_fmt_num(lo)} – {_fmt_num(hi)}",
                 showcase=ui.span("predictive range, not error bars on truth", class_="small text-muted"),
             ),
             ui.value_box(
@@ -88,10 +128,16 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
         frame = series()
         if frame.empty:
             return ui.p("No series.")
+        frame = frame.copy()
+        frame["as_of_date"] = pd.to_datetime(frame["as_of_date"], errors="coerce")
+        frame = frame.dropna(subset=["as_of_date"]).sort_values("as_of_date")
+        if frame.empty:
+            return ui.p("No dated forecast series for this selection.")
         payload = replay_payload()
         story = (payload.get("story") or {}) if payload.get("ok") else {}
         fig = go.Figure()
         colours = {"7": "#88c0d0", "14": "#ebcb8b", "28": "#bf616a"}
+        x = frame["as_of_date"]
         for h, colour in colours.items():
             col = f"forecast_{h}d"
             lo = f"forecast_{h}d_lower"
@@ -99,39 +145,40 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             if col not in frame.columns:
                 continue
             fig.add_trace(go.Scatter(
-                x=frame["as_of_date"], y=frame[hi], line=dict(width=0), showlegend=False,
+                x=x, y=frame[hi], line=dict(width=0), showlegend=False,
             ))
             fig.add_trace(go.Scatter(
-                x=frame["as_of_date"], y=frame[lo], fill="tonexty", name=f"{h}d interval",
+                x=x, y=frame[lo], fill="tonexty", name=f"{h}d interval",
                 line=dict(width=0), fillcolor="rgba(136,192,208,0.15)",
             ))
             fig.add_trace(go.Scatter(
-                x=frame["as_of_date"], y=frame[col], name=f"Forecast {h}d",
+                x=x, y=frame[col], name=f"Forecast {h}d",
                 line=dict(color=colour, width=2),
             ))
         fig.add_trace(go.Scatter(
-            x=frame["as_of_date"], y=frame["observed"], name="Observed official (vintage)",
+            x=x, y=frame["observed"], name="Observed official (vintage)",
             line=dict(color="#eceff4", dash="dot"),
         ))
         as_of = selected_as_of(input)
-        fig.add_vline(x=as_of, line_dash="dash", line_color="#a3be8c",
-                      annotation_text="as-of", annotation_position="top left")
+        _add_vline(fig, as_of, text="as-of", color="#a3be8c", dash="dash", position="top left")
         watch = story.get("first_watch_date")
         alert = story.get("first_alert_date") or story.get("first_alert_in_series")
         official_after = story.get("first_official_after_as_of")
         official_before = story.get("last_official_before_as_of")
         if watch:
-            fig.add_vline(x=watch, line_dash="dot", line_color="#ebcb8b",
-                          annotation_text="model WATCH", annotation_position="top right")
+            _add_vline(fig, watch, text="model WATCH", color="#ebcb8b", dash="dot", position="top right")
         if alert and alert != watch:
-            fig.add_vline(x=alert, line_dash="dot", line_color="#bf616a",
-                          annotation_text="model ALERT", annotation_position="top right")
+            _add_vline(fig, alert, text="model ALERT", color="#bf616a", dash="dot", position="top right")
         if official_after:
-            fig.add_vline(x=official_after, line_dash="solid", line_color="#88c0d0",
-                          annotation_text="official after", annotation_position="bottom right")
+            _add_vline(
+                fig, official_after, text="official after", color="#88c0d0",
+                dash="solid", position="bottom right",
+            )
         elif official_before:
-            fig.add_vline(x=official_before, line_dash="solid", line_color="#5e81ac",
-                          annotation_text="last official before", annotation_position="bottom left")
+            _add_vline(
+                fig, official_before, text="last official before", color="#5e81ac",
+                dash="solid", position="bottom left",
+            )
         fig.update_layout(
             title=(
                 "Short-term forecasts vs official observation "
@@ -142,6 +189,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             margin=dict(l=40, r=20, t=60, b=40),
             yaxis_title="Burden index (model scale)",
             xaxis_title="As-of week",
+            xaxis=dict(type="date"),
         )
         return ui.HTML(fig.to_html(include_plotlyjs="cdn", full_html=False))
 
@@ -239,7 +287,7 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
 
         smr_found = bool(story.get("smr_found"))
         smr_validates = bool(story.get("smr_validates_model"))
-        smr_note = story.get("smr_note") or ""
+        smr_note = str(story.get("smr_note") or "")
         smr_knowable = story.get("smr_report_knowable_from")
         smr_sem = story.get("smr_semester_end")
         smr_lead = story.get("smr_lead_days_to_report")
@@ -248,16 +296,16 @@ def register(input, output, session, data, filtered_predictions):  # noqa: ANN00
             smr_body = (
                 f"Supporting SMR validation: semester ending {smr_sem} listed disease present / outbreaks "
                 f"and became knowable on {smr_knowable}"
-                + (f" ({smr_lead} days after the model marker)." if smr_lead is not None else ".")
-                + f" {smr_note}"
+                f"{f' ({smr_lead} days after the model marker)' if smr_lead is not None else ''}."
+                f" {smr_note}"
             )
             smr_tone = "ok"
         elif smr_found:
             smr_body = smr_note
             smr_tone = "info"
         else:
-            smr_body = smr_note + (
-                " Remember: once a situation is treated as endemic / stable, countries often stop "
+            smr_body = (
+                f"{smr_note} Remember: once a situation is treated as endemic / stable, countries often stop "
                 "event-driven INFUR and continue only via six-month reports; non-notifiable diseases "
                 "may never appear on INFUR."
             )

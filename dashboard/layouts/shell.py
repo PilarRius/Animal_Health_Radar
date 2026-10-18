@@ -20,7 +20,14 @@ LAYER_HELP = ui.tags.ul(
     ui.tags.li(ui.tags.strong("Estimated latent activity — "), "Model nowcast of underlying burden (not confirmed cases)."),
     ui.tags.li(ui.tags.strong("Reporting gap — "), "How much larger the latent estimate is than official observation."),
     ui.tags.li(ui.tags.strong("Forecast 14d / 28d — "), "Short-term expected burden trajectories."),
-    ui.tags.li(ui.tags.strong("Environmental / Intelligence signal — "), "Context layers that feed the model (not standalone alerts)."),
+    ui.tags.li(
+        ui.tags.strong("Environmental context signal — "),
+        "Climate / suitability context (e.g. ERA5) feeding the model — not a standalone alert.",
+    ),
+    ui.tags.li(
+        ui.tags.strong("Intelligence context signal — "),
+        "Fused media / epidemic-intelligence anomaly (PADI, BEACON, GDELT, EIOS, …) — context only, not confirmation.",
+    ),
 )
 
 
@@ -234,6 +241,27 @@ def _ahr_css() -> ui.Tag:
           padding: 1rem 1.25rem;
           margin-bottom: 1rem;
         }
+        .ahr-legal-table {
+          width: 100%;
+          font-size: 0.82rem;
+          background: #fff;
+          margin-bottom: 1rem;
+        }
+        .ahr-legal-table th {
+          background: var(--woah-sky);
+          color: var(--woah-blue-deep);
+          vertical-align: top;
+          white-space: nowrap;
+        }
+        .ahr-legal-table td {
+          vertical-align: top;
+          color: var(--woah-ink);
+        }
+        .ahr-legal-table td:nth-child(3),
+        .ahr-legal-table td:nth-child(4) {
+          min-width: 12rem;
+        }
+        .ahr-licensing h3 { color: var(--woah-blue-deep); margin-top: 0.5rem; }
         .ahr-callout h4 { color: var(--woah-blue-deep) !important; margin-top: 0; }
         .ahr-callout p, .ahr-callout li { color: var(--woah-ink) !important; }
         .ahr-explain {

@@ -112,7 +112,7 @@ class ERA5Adapter(_WeeklyReanalysisAdapter):
 
     source_name = "ERA5"
     sample_filename = "era5_weekly_sample.csv"
-    licence = "Copernicus Climate Change Service - free with attribution"
+    licence = "CC BY 4.0 (Copernicus CDS) — attribution required; no EC/ECMWF liability"
     homepage = "https://cds.climate.copernicus.eu"
     variables = {
         "t2m_mean_c": "degC",
@@ -134,7 +134,7 @@ class ERA5LandAdapter(_WeeklyReanalysisAdapter):
 
     source_name = "ERA5-Land"
     sample_filename = "era5land_weekly_sample.csv"
-    licence = "Copernicus Climate Change Service - free with attribution"
+    licence = "CC BY 4.0 (Copernicus CDS) — attribution required; no EC/ECMWF liability"
     homepage = "https://cds.climate.copernicus.eu"
     reliability = 0.88
     variables = {

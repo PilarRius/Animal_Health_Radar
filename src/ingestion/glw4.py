@@ -43,7 +43,7 @@ class GLW4Adapter(SourceAdapter):
     reliability = 0.85
     sample_filename = "glw4_livestock_density_sample.csv"
     ingestion_lag_days = 0
-    licence = "CC BY 4.0 (Harvard Dataverse)"
+    licence = "CC BY 4.0 (FAO GLW4 / Harvard Dataverse)"
     homepage = "https://dataverse.harvard.edu/dataverse/glw"
     live_env_var = "GLW4_BASE"
 

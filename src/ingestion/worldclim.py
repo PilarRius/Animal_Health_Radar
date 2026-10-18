@@ -44,7 +44,7 @@ class WorldClimAdapter(SourceAdapter):
     reliability = 0.92
     sample_filename = "worldclim_climatology_sample.csv"
     ingestion_lag_days = 0
-    licence = "WorldClim - free for academic and non-commercial use"
+    licence = "WorldClim — free for academic/non-commercial use; no redistribution without permission"
     homepage = "https://www.worldclim.org"
     live_env_var = "WORLDCLIM_BASE"
 

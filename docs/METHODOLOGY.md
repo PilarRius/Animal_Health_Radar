@@ -356,7 +356,27 @@ official visibility*, *MODEL ESTIMATE*.
 
 ---
 
-## 9. Related docs
+## 9. Literature & principles (cite when discussing methods)
+
+The pilot adapts standard ideas; it is **not** a clone of any single published pipeline.
+In-app table: **Methodology → Methodology literature & principles**.
+
+| Topic | Key references |
+|-------|----------------|
+| Right-truncated reporting delay | Brookmeyer & Gail (1988); Lawless (2003); McGough et al. (2020) *Nowcasting by Bayesian Smoothing* |
+| Incomplete-count nowcasting | Höhle & an der Heiden (2014) *Biometrics* |
+| CRPS / ensemble weights | Gneiting & Raftery (2007); Hyndman & Athanasopoulos (*FPP*) |
+| Isotonic calibration | Zadrozny & Elkan (2002); Niculescu-Mizil & Caruana (2005) |
+| SHAP explanations | Lundberg & Lee (2017) NeurIPS |
+| Effective independent evidence \(n_{\mathrm{eff}}\) | Kish (1965) *Survey Sampling* (adapted to independence clusters) |
+| ERA5 covariates | Hersbach et al. (2020) QJRMS; CDS DOI 10.24381/cds.adbb2d47 |
+
+**Data licences & suggested citations** (WAHIS, FAOSTAT CC BY 4.0, Copernicus, GDELT, PADI-web, GLW4, WorldClim, …):  
+**Data sources → Data sources, licences & citations** and `dashboard/licensing.py`.
+
+---
+
+## 10. Related docs
 
 - `docs/INITIAL_MODEL_DESIGN.md` — stack overview & baselines  
 - `docs/TARGET_DEFINITION.md` — EW / forecast targets  
@@ -364,3 +384,5 @@ official visibility*, *MODEL ESTIMATE*.
 - `docs/MODEL_CARD.md` — limitations  
 - `docs/TECHNICAL_REPORT.md` — submission narrative  
 - `docs/WAHIS_INFUR_SMR_DROP.md` — INFUR vs SMR reporting behaviour  
+- `docs/DATA_SOURCE_STATUS.md` — adapter status + licence summary  
+- `dashboard/licensing.py` — canonical in-app citation table  

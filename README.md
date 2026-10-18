@@ -170,4 +170,9 @@ python -m pytest tests/leakage -q
 
 ## Licence / provenance
 
-Preserve source provenance (§61): source, URL, record id, retrieval/publication/event timestamps, source type, lineage, independence cluster. EMPRES-i records downstream of WAHIS are not double-counted.
+Preserve source provenance (§61): source, URL, **licence**, record id, retrieval/publication/event timestamps, source type, lineage, independence cluster. EMPRES-i records downstream of WAHIS are not double-counted.
+
+**Data licences & suggested citations** (must-cite in reports): in-app **Data sources → Data sources, licences & citations** (`dashboard/licensing.py`).  
+**Methodology literature** (delay truncation, nowcasting, CRPS, SHAP, …): **Methodology** tab + `docs/METHODOLOGY.md` §9.
+
+Notable corrections vs older adapter labels: FAOSTAT is **CC BY 4.0** (+ FAO Statistical Database Terms); ERA5/ERA5-Land follow **Copernicus CDS CC BY** with the required EC/ECMWF disclaimer.

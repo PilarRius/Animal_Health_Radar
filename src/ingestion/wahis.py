@@ -75,7 +75,7 @@ class WAHISAdapter(SourceAdapter):
     downstream_of_official = False
     sample_filename = "wahis_events_sample.csv"
     ingestion_lag_days = 0
-    licence = "WOAH terms of use - attribution required"
+    licence = "WOAH WAHIS public terms — attribution required; no commercial site redistribution; no endorsement"
     homepage = "https://wahis.woah.org"
     live_env_var = None  # API disabled; use offline extracts only
 

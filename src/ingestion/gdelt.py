@@ -49,7 +49,7 @@ class GDELTAdapter(SourceAdapter):
     reliability = 0.45
     sample_filename = "gdelt_daily_sample.csv"
     ingestion_lag_days = 1
-    licence = "GDELT Project - open, attribution required"
+    licence = "GDELT Project — open (any use); cite GDELT + https://www.gdeltproject.org/"
     homepage = "https://www.gdeltproject.org"
     live_env_var = "GDELT_API_BASE"
 

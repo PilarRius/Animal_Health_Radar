@@ -36,7 +36,7 @@ class FAOSTATAdapter(SourceAdapter):
     evidence_cluster = EvidenceCluster.EXPOSURE
     reliability = 0.80
     sample_filename = "faostat_livestock_annual_sample.csv"
-    licence = "CC BY-NC-SA 3.0 IGO"
+    licence = "CC BY 4.0 + FAO Statistical Database Terms of Use"
     homepage = "https://www.fao.org/faostat"
     live_env_var = "FAOSTAT_API_BASE"
 

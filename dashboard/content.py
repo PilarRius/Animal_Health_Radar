@@ -5,6 +5,7 @@ from __future__ import annotations
 from shiny import ui
 
 from dashboard.data_loader import AppData
+from dashboard.licensing import data_licensing_section, methodology_citations_section
 
 
 def tab_explainer(
@@ -42,7 +43,7 @@ def tab_explainer(
 def section_note(title: str, body: str) -> ui.Tag:
     return ui.div(
         {"class": "ahr-section-note mb-2"},
-        ui.tags.strong(title + " — "),
+        ui.tags.strong(f"{title} — "),
         ui.tags.span(body, class_="small"),
     )
 
@@ -187,28 +188,49 @@ def intro_panel(data: AppData) -> ui.Tag:
             col_widths=(3, 3, 3, 3),
         ),
         ui.p(
-            "Geography is ",
+            "The country list is ",
             ui.tags.strong("global"),
-            " (WOAH membership panel). Official WAHIS INFUR is worldwide; "
-            "epidemic-intelligence caches (PADI / BEACON / EIOS) may still be denser in some regions until re-fetched. "
-            "Countries without recent notifications can still appear with low / baseline scores.",
+            " (WOAH Members). Official WAHIS notifications cover the world, so any Member "
+            "can appear on the map. Extra media/intelligence feeds (PADI-web, BEACON, EIOS) "
+            "are stronger in some regions than others in this build — a quiet country often "
+            "means little recent evidence, not that disease risk is zero. Low or baseline "
+            "scores are normal where there are few recent official reports.",
             class_="small text-muted",
         ),
         ui.div(
             {"class": "alert alert-warning mt-3"},
             ui.tags.strong(f"Data mode: {mode}. "),
             (
-                "Official observation is real WAHIS INFUR (offline extract; no API). "
-                "SMR semester status is kept separate from outbreak counts, but Forecast & Replay "
-                "can use a later SMR as secondary validation when INFUR goes quiet "
-                "(stable/endemic or SMR-only reporting paths). "
-                "Media/environment enrichment may still use labelled sample files — "
-                "see Data sources. Never treat map colours as confirmed outbreaks."
+                ui.tags.span(
+                    "What is real in this demo: official WAHIS ",
+                    ui.tags.strong("INFUR"),
+                    " outbreak notifications from an offline file extract (no live API). "
+                    "WAHIS ",
+                    ui.tags.strong("SMR"),
+                    " (six-monthly reports) are ",
+                    ui.tags.em("not"),
+                    " counted as outbreaks; Forecast & Replay may only use a later SMR "
+                    "as a coarse check when INFUR goes quiet (e.g. endemic / stable situations). "
+                    "Some media and climate layers may still be labelled sample data — "
+                    "see Data sources. Map colours and ranks are ",
+                    ui.tags.strong("model estimates"),
+                    ", never confirmed outbreaks."
+                )
                 if data.data_mode in {"pilot", "offline"}
-                else "The demo runs on a clearly labelled synthetic corpus so the full "
-                "pipeline is reproducible offline. Drop real INFUR/SMR under data/raw/ "
-                "and set data_mode=pilot. Never treat map colours as confirmed outbreaks."
+                else ui.tags.span(
+                    "This build uses a clearly labelled synthetic corpus so the pipeline "
+                    "runs offline. For real INFUR/SMR, place extracts under ",
+                    ui.tags.code("data/raw/"),
+                    " and set data_mode=pilot. Map colours are model estimates, never confirmed outbreaks."
+                )
             ),
+        ),
+        ui.p(
+            ui.tags.small(
+                "Not an official WOAH/FAO/WHO product. Data licences and suggested citations: "
+                "Data sources tab · methodology literature: Methodology tab."
+            ),
+            class_="text-muted",
         ),
         ui.p(
             ui.tags.em(
@@ -253,20 +275,82 @@ def data_sources_panel(data: AppData) -> ui.Tag:
             ),
         ),
         ui.h4("Epidemic intelligence (non-official)"),
+        ui.p(
+            "These feeds are ",
+            ui.tags.em("not"),
+            " official outbreak confirmations. They supply early, noisy context that the model "
+            "turns into features (volume anomalies, curation intensity, etc.). All three sit in "
+            "the same media independence cluster so overlapping stories do not triple-count.",
+            class_="small text-muted",
+        ),
         ui.tags.ul(
-            ui.tags.li(ui.tags.strong("GDELT / ProMED / HealthMap — "), "Media signals → volume anomalies, diversity, acceleration — never raw article count as outbreak probability."),
+            ui.tags.li(
+                ui.tags.strong("GDELT — "),
+                "Global news machine: counts of online articles mentioning animal-disease themes "
+                "by country (and related tone / language / outlet metadata). ",
+                ui.tags.em("What we use: "),
+                "weekly ",
+                ui.tags.strong("abnormal volume"),
+                " (vs a country’s own recent baseline), ",
+                ui.tags.strong("acceleration"),
+                " (is coverage speeding up?), ",
+                ui.tags.strong("source diversity"),
+                ", and a simple ",
+                ui.tags.strong("tone negativity"),
+                " index. ",
+                ui.tags.em("What we do not use: "),
+                "raw article counts as “outbreak probability” — many articles can be one story."
+            ),
+            ui.tags.li(
+                ui.tags.strong("ProMED (ISID) — "),
+                "Human-curated mailing-list posts on emerging infectious diseases (often with "
+                "moderator commentary). Sparse but higher signal-to-noise than bulk news. ",
+                ui.tags.em("What we use: "),
+                "weekly ",
+                ui.tags.strong("post counts"),
+                ", a ",
+                ui.tags.strong("confidence-weighted"),
+                " intensity (confirmed / suspected / unverified), and the share of posts with "
+                "curator comments. ",
+                ui.tags.em("What we do not use: "),
+                "anomaly z-scores — the series is too sparse for a control chart to be meaningful."
+            ),
+            ui.tags.li(
+                ui.tags.strong("HealthMap — "),
+                "Boston Children’s Hospital aggregator of geo-coded disease alerts drawn from "
+                "open web / news / official-style feeds (often overlapping GDELT and ProMED). ",
+                ui.tags.em("What we use: "),
+                "weekly ",
+                ui.tags.strong("unique alert"),
+                " volume and its anomaly, plus ",
+                ui.tags.strong("duplicate share"),
+                " and ",
+                ui.tags.strong("official-feed share"),
+                " so we can see how much is new vs echoed. ",
+                ui.tags.em("Main role here: "),
+                "geolocation / aggregation context — not treated as fully independent evidence."
+            ),
             ui.tags.li(
                 ui.tags.strong("PADI-web — "),
-                "Real public JSON API (padi-web.cirad.fr/en/articles/api/) for CIRAD event extractions; cached under data/raw/padiweb/."
+                "CIRAD automated extraction of animal-disease events from multilingual news "
+                "(structured fields such as disease, place, date). Real public JSON API; "
+                "cached under ",
+                ui.tags.code("data/raw/padiweb/"),
+                "."
             ),
             ui.tags.li(
                 ui.tags.strong("BEACON — "),
-                "Real public API (api.beaconbio.org) for curated reports; cached offline under data/raw/beacon/."
+                "Curated biosurveillance reports (title, location, disease tags) from a public API. "
+                "Cached under ",
+                ui.tags.code("data/raw/beacon/"),
+                "."
             ),
             ui.tags.li(
                 ui.tags.strong("EIOS — "),
-                "Real recent feed from the public WHO Pandemic Hub newsmap (EIOS-tagged open news); "
-                "optional full community-portal Excel/CSV under data/raw/eios/."
+                "EIOS-tagged open news via the public WHO Pandemic Hub newsmap (recent items); "
+                "optional full community-portal Excel/CSV under ",
+                ui.tags.code("data/raw/eios/"),
+                " for authorised users only."
             ),
         ),
         ui.h4("Environment & exposure"),
@@ -301,6 +385,7 @@ def data_sources_panel(data: AppData) -> ui.Tag:
             ui.tags.code("data/sample/"),
             " are flagged synthetic/mock in provenance.",
         ),
+        data_licensing_section(),
     )
 
 
@@ -469,6 +554,7 @@ def methodology_panel(data: AppData) -> ui.Tag:
             "not claimed epidemiologically optimal.",
             class_="text-muted",
         ),
+        methodology_citations_section(),
         ui.p(
             ui.tags.small(
                 "Full equations & tables: docs/METHODOLOGY.md · also TARGET_DEFINITION.md, "
